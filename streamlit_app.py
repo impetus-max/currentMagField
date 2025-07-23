@@ -36,6 +36,7 @@ plt.rcParams["axes.unicode_minus"] = False
 
 # ---------------- 차시·메뉴 -----------------------------------------
 steps_1 = [
+    "물리학1 전류의 자기작용",     # 👈 인트로 첫 화면 추가!
     "수업 소개",
     "학습 목표",
     "전류의 자기장 개념 확인",
@@ -122,6 +123,23 @@ st.header(f"📝 {step_name}")
 # --------------------------------------------------------------------
 
 # ---------------- 각 페이지 함수 ------------------------------------
+
+def page_intro_physics():
+    st.markdown("""
+    # 🌟 물리학1 전류의 자기작용
+
+    ---
+    전류가 흐를 때 나타나는 자기적 효과는 전기와 자기의 연결고리이자  
+    현대 과학·공학의 출발점입니다.
+
+    *이 단원에서는 전류와 자기장, 실험, 그리고 대표 응용 사례까지  
+    탐구하고 직접 체험하는 활동 중심 수업이 시작됩니다!*
+    """)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/1/13/Magnetic_Field_Lines.png",
+             caption="전류에 의한 자기장 실험: 자기력선 시각화")
+
+
+
 def page_overview():
     st.image("/workspaces/currentMagField/image/LGDisplayExtension_4QksDd6Twe.png",
              caption="외르스테드의 전류·자기장 발견 (1820)")
