@@ -1,5 +1,5 @@
 # =====================================================================
-#   고2 물리 – 전류의 자기장  ▶  ‘참여형’ Streamlit 수업 앱  (rev 5)
+#   고2 물리 – 전류의 자기장  ▶  ‘참여형’ Streamlit 수업 앱  (rev 6: 인트로만 숨김)
 # =====================================================================
 import streamlit as st, numpy as np, matplotlib.pyplot as plt
 from matplotlib import font_manager
@@ -35,8 +35,8 @@ plt.rcParams["axes.unicode_minus"] = False
 # --------------------------------------------------------------------
 
 # ---------------- 차시·메뉴 -----------------------------------------
-steps_1 = [
-    "물리학1 전류의 자기작용",     # 👈 인트로 첫 화면 추가!
+steps_1_all = [
+    "물리학1 전류의 자기작용",     # 👈 인트로(실제 첫화면, 메뉴/진행률/체크에는 숨김)
     "수업 소개",
     "학습 목표",
     "전류의 자기장 개념 확인",
@@ -46,6 +46,7 @@ steps_1 = [
     "전류의 자기장 실험3 : 솔레노이드 주위의 자기장 확인하기",
     "실험 결과 작성하기",
 ]
+steps_1_menu = steps_1_all[1:]  # 👈 메뉴/진행률/체크에는 인트로(0번) 빼고!
 steps_2 = [
     "기본 개념 문제 (2차시)",
     "전류에 의한 자기장 이론 정리",
@@ -54,12 +55,12 @@ steps_2 = [
     "탐구 과제",
     "피드백 요약",
 ]
-steps  = steps_1 + steps_2
-N1, N2 = len(steps_1), len(steps_2)
+steps_all = steps_1_all + steps_2  # 전체 페이지
+N1, N2 = len(steps_1_menu), len(steps_2)
 # --------------------------------------------------------------------
 
 # ---------------- 세션 상태 -----------------------------------------
-if "done"         not in st.session_state: st.session_state.done   = [False]*len(steps)
+if "done"         not in st.session_state: st.session_state.done   = [False]*len(steps_all)
 if "current"      not in st.session_state: st.session_state.current = 0
 if "student_info" not in st.session_state:
     st.session_state.student_info = {"학번":"", "성명":"", "이동반":""}
@@ -96,29 +97,31 @@ if st.sidebar.button("정보 저장"):
 st.sidebar.divider()
 
 # ---- 1차시 ---------------------------------------------------------
-p1 = sum(st.session_state.done[:N1]) / N1
+# ✅ 인트로(0번)는 메뉴, 진행률, 체크에서 제외! (start=1)
+p1 = sum(st.session_state.done[1:1+N1]) / N1
 st.sidebar.markdown(f"### 1차시 수업 진행률 : {int(p1*100)} %")
 st.sidebar.progress(p1)
-for i, name in enumerate(steps_1):
+for offset, name in enumerate(steps_1_menu, start=1):  # 1부터!
+    i = offset
     label = f"{'✅' if st.session_state.done[i] else '○'} {name}"
     if st.sidebar.button(label, key=f"btn1_{i}"):
         st.session_state.current, st.session_state.done[i] = i, True
 
-st.sidebar.markdown("<br>", unsafe_allow_html=True)  # 간격 2줄
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
 # ---- 2차시 ---------------------------------------------------------
-p2 = sum(st.session_state.done[N1:]) / N2
+p2 = sum(st.session_state.done[len(steps_1_all):]) / N2
 st.sidebar.markdown(f"### 2차시 수업 진행률 : {int(p2*100)} %")
 st.sidebar.progress(p2)
-for j, name in enumerate(steps_2, start=N1):
+for j, name in enumerate(steps_2, start=len(steps_1_all)):
     label = f"{'✅' if st.session_state.done[j] else '○'} {name}"
     if st.sidebar.button(label, key=f"btn2_{j}"):
         st.session_state.current, st.session_state.done[j] = j, True
 # --------------------------------------------------------------------
 
 # ---------------- 본문 헤더 ----------------------------------------
-step_name = steps[st.session_state.current]
+step_name = steps_all[st.session_state.current]
 st.header(f"📝 {step_name}")
 # --------------------------------------------------------------------
 
@@ -126,10 +129,9 @@ st.header(f"📝 {step_name}")
 
 def page_intro_physics():
     st.markdown("""
-    # 🌟 물리학1 전류의 자기작용
-
+    # 
     ---
-    전류가 흐를 때 나타나는 자기적 효과는 전기와 자기의 연결고리이자  
+    🌟 전류가 흐를 때 나타나는 자기적 효과는 전기와 자기의 연결고리이자  
     현대 과학·공학의 출발점입니다.
 
     *이 단원에서는 전류와 자기장, 실험, 그리고 대표 응용 사례까지  
@@ -137,8 +139,6 @@ def page_intro_physics():
     """)
     st.image("https://upload.wikimedia.org/wikipedia/commons/1/13/Magnetic_Field_Lines.png",
              caption="전류에 의한 자기장 실험: 자기력선 시각화")
-
-
 
 def page_overview():
     st.image("/workspaces/currentMagField/image/LGDisplayExtension_4QksDd6Twe.png",
@@ -157,7 +157,6 @@ def page_goal():
     3. 직선·원형·솔레노이드가 만드는 **자기장 세기 계산**  
     """)
 
-# --- 개념 + 시뮬레이터 ----------------------------------------------
 def page_concept():
     st.subheader("자기장 / 자기력선 개념")
     colL, colR = st.columns(2)
@@ -171,47 +170,55 @@ def page_concept():
         **오른손 법칙**: 엄지(전류) → 손가락(자기장)
         """)
     st.markdown("---")
+   def page_concept():
+    st.subheader("자기장 / 자기력선 개념")
+    # ... (좌우 설명 카드 등 기존 코드)
+
+    st.markdown("---")
+    def page_concept():
+    st.subheader("자기장 / 자기력선 개념")
+    # (중략)  
+    st.markdown("---")
     st.markdown("### ⚡ 자기장 시뮬레이터")
 
-    mode        = st.radio("자석 종류", ["막대자석", "지구"], horizontal=True)
-    auto_rotate = st.checkbox("Auto Rotate", value=False)
-    needle_w    = st.slider("자침 두께", 0.5, 3.0, 1.2, 0.1)
+    import numpy as np
+    import matplotlib.pyplot as plt
 
-    x = np.linspace(-2, 2, 20)
+    x = np.linspace(-3, 3, 30)
     y = np.linspace(-3, 3, 30)
     X, Y = np.meshgrid(x, y)
 
-    theta = (int(time.time()*20) % 360 if auto_rotate else 0) * np.pi/180
-    Xr = X*np.cos(theta) - Y*np.sin(theta)
-    Yr = X*np.sin(theta) + Y*np.cos(theta)
+    mx, my = 0, 1  # 자성모멘트 (y축 방향)
 
-    def dipole_B(X, Y, M=1):
-        r2 = X**2 + Y**2
-        with np.errstate(divide='ignore', invalid='ignore'):
-            Bx = M * (3*X*Y) / (r2**2)
-            By = M * (2*Y**2 - X**2) / (r2**2)
-            mask = r2 < 0.09          # 중심 과다값 제거
-            Bx[mask], By[mask] = 0, 0
-        return Bx, By
+    R = np.sqrt(X**2 + Y**2)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        RX = X / R
+        RY = Y / R
+        mdotr = mx * RX + my * RY
+        Bx = (3 * mdotr * RX - mx) / (R**3)
+        By = (3 * mdotr * RY - my) / (R**3)
+        mask = (R < 0.5)
+        Bx[mask] = 0
+        By[mask] = 0
 
-    Bx, By = dipole_B(Xr, Yr, M=1 if mode=="막대자석" else 2)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_aspect('equal')
+    ax.set_xlim(-3, 3)
+    ax.set_ylim(-3, 3)
+    ax.axis('off')
 
-    fig, ax = plt.subplots(figsize=(4,6))
-    ax.set_aspect("equal"); ax.axis("off")
-    ax.set_xlim(-2,2); ax.set_ylim(-3,3)
+    ax.add_patch(plt.Rectangle((-0.2, -1.5), 0.4, 3.0, color='red', zorder=1))
+    ax.add_patch(plt.Rectangle((-0.2,  1.0), 0.4, 0.5, color='blue', zorder=2))
+    ax.text(0, 1.7, 'N', fontsize=16, color='blue', ha='center')
+    ax.text(0, -1.7, 'S', fontsize=16, color='red', ha='center')
 
-    if mode=="막대자석":
-        ax.add_patch(plt.Rectangle((-0.15,-1),0.3,2,color="red"))
-        ax.add_patch(plt.Rectangle((-0.15, 1),0.3,1,color="blue"))
-        ax.text(0, 2.1,"N",color="blue",ha="center"); ax.text(0,-2.1,"S",color="red",ha="center")
-    else:
-        ax.add_patch(plt.Circle((0,0),1.3,color="green",alpha=.3))
-        ax.text(0,1.5,"북극",color="blue",ha="center"); ax.text(0,-1.5,"남극",color="red",ha="center")
+    ax.quiver(X, Y, Bx, By, color='royalblue', angles='xy',
+              scale=1, width=0.012, scale_units='xy', minlength=0.04)
 
-    ax.quiver(X, Y, Bx, By, color="royalblue",
-              angles="xy", scale_units="xy", scale=8, width=needle_w/800)
     st.pyplot(fig)
-# --------------------------------------------------------------------
+
+
+
 def page_basic_1():
     q = st.radio("자기력선 방향은?", ["N→S", "S→N"])
     if st.button("채점 (1차시)"):
@@ -266,7 +273,7 @@ def page_feedback():
 
 # ---------------- 페이지 매핑 ---------------------------------------
 PAGES = {
-    # 1차시
+    "물리학1 전류의 자기작용": page_intro_physics,
     "수업 소개": page_overview,
     "학습 목표": page_goal,
     "전류의 자기장 개념 확인": page_concept,
@@ -278,7 +285,6 @@ PAGES = {
     "전류의 자기장 실험3 : 솔레노이드 주위의 자기장 확인하기":
         lambda: page_exp("실험3 : 솔레노이드 B 관찰"),
     "실험 결과 작성하기": page_report,
-    # 2차시
     "기본 개념 문제 (2차시)": page_basic_2,
     "전류에 의한 자기장 이론 정리": page_theory,
     "예제 풀이": page_example,
