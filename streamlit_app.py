@@ -117,13 +117,13 @@ def page_intro_physics():
 ---
 🌟 전류가 흐르면 발생하는 자기장은 전기와 자기 현상의 연결고리입니다.""")
     c1,c2=st.columns(2)
-    with c1: safe_img("/workspaces/currentMagField/image/스피커.webp",
+    with c1: safe_img("/workspaces/currentMagField/image/speaker.webp",
                       caption="스피커",use_column_width=True)
-    with c2: safe_img("/workspaces/currentMagField/image/기중기.jpg",
+    with c2: safe_img("/workspaces/currentMagField/image/crane.jpg",
                       caption="전자석 기중기",use_column_width=True)
 
 def page_overview():
-    safe_img("/workspaces/currentMagField/image/LGDisplayExtension_4QksDd6Twe.png",
+    safe_img("/workspaces/currentMagField/image/oersted_experiment.png",
              caption="외르스테드의 실험(1820)")
     st.markdown("외르스테드 실험으로부터 시작된 전류의 자기 현상은 현대 전기 문명이 나타나게 했습니다. : 개념 → 실험 → 수능 문제 순으로 학습합니다.")
 
@@ -136,7 +136,7 @@ def page_goal():
 def page_concept():
     L,R=st.columns(2)
     with L:
-        safe_img("/workspaces/currentMagField/image/LGDisplayExtension_7UEwvXBegJ.png",
+        safe_img("/workspaces/currentMagField/image/magnet_lines_compass.png",
                  caption="막대자석 자기력선·나침반")
     with R:
         st.markdown("**자기장**: 자기력이 작용하는 공간")
@@ -211,7 +211,7 @@ def page_concept():
 
 # ─── 기본 개념 문제 (1차시) ───────────────────────────────────────
 def page_basic_1():
-    safe_img("/workspaces/currentMagField/image/막대자석 문제.png")
+    safe_img("/workspaces/currentMagField/image/magnet_quiz_1.png")
     ans=st.text_input("A 지점에 있는 나침반의 N극이 가리키는 방향은?")
     if st.button("채점"):
         ok="동" in ans
@@ -229,11 +229,11 @@ def page_basic_1():
 # ─── 실험 공통 함수 ───────────────────────────────────────
 def page_exp(question_text: str, label_code: str):
     info = {
-        "실험1": { "img":"/workspaces/currentMagField/image/LGDisplayExtension_r681yHPJNP직선.png",
+        "실험1": { "img":"/workspaces/currentMagField/image/exp_straight_wire.png",
                    "caption":"직선 도선 주위의 나침반 관찰하기 : 그림처럼 회로를 연결하고 스위치를 닫았을 때, 직선 도선 주위에 있는 나침반의 N극이 어떻게 움직이는지 관찰한다. " },
-        "실험2": { "img":"/workspaces/currentMagField/image/LGDisplayExtension_cU54B9ibwp원형.png",
+        "실험2": { "img":"/workspaces/currentMagField/image/exp_circular_wire.png",
                    "caption":"원형 도선 중심·주위의 나침반 관찰하기 : 그림처럼 회로를 연결하고 스위치를 닫았을 때, 원형 도선의 가운데에 있는 나침반의 N극이 어떻게 움직이는지 관찰한다." },
-        "실험3": { "img":"/workspaces/currentMagField/image/LGDisplayExtension_w3NvZAdYL2솔.png",
+        "실험3": { "img":"/workspaces/currentMagField/image/exp_solenoid.png",
                    "caption":"솔레노이드 내부·외부의 나침반 관찰하기 : 그림처럼 회로를 연결하고 스위치를 닫았을 때, 솔레노이드 중심축에 위치한 나침반의 N극이 어떻게 움직이는지 관찰한다." },
     }[label_code]
 
@@ -295,7 +295,7 @@ def page_report():
 def page_basic_2():
     # 문제 그림
     safe_img(
-        "/workspaces/currentMagField/image/예제 문제 그림.png")
+        "/workspaces/currentMagField/image/basic_quiz_2.png")
 
     # 지문
     st.markdown("""
@@ -349,14 +349,14 @@ def page_theory():
 
     # ── 공통 개념 그림 ─────────────────────────────────────
     safe_img(
-        "/workspaces/currentMagField/image/LGDisplayExtension_hJScqL0q2q.png",
+        "/workspaces/currentMagField/image/ampere_law_overview.png",
         caption="앙페르 법칙 개념도")
 
     # 1️⃣ 직선 도선 -------------------------------------------------
     st.markdown("### 1. 무한히 긴 **직선 도선**")
     st.latex(r"B=\frac{\mu_0 I}{2\pi r}")
     safe_img(
-        "/workspaces/currentMagField/image/LGDisplayExtension_8u29lUSHQC.png",
+        "/workspaces/currentMagField/image/right_hand_rule_straight.png",
         caption="오른나사(오른손) 법칙으로 방향 구하기")
     st.markdown("""
 * **방향** : 전류 방향을 오른손 **엄지**로, 휘감는 **네 손가락**이 자기장 방향  
@@ -371,11 +371,11 @@ def page_theory():
     c1, c2 = st.columns(2)
     with c1:
         safe_img(
-            "/workspaces/currentMagField/image/LGDisplayExtension_n1x26TXV02.png",
+            "/workspaces/currentMagField/image/circular_wire_center.png",
             caption="원형 도선 중심의 자기장")
     with c2:
         safe_img(
-            "/workspaces/currentMagField/image/LGDisplayExtension_Q9k6rW0A72.png",
+            "/workspaces/currentMagField/image/circular_wire_pattern.png",
             caption="원형 도선의 자기력선 패턴")
 
     st.markdown("""
@@ -387,14 +387,14 @@ def page_theory():
     st.markdown("### 3. **솔레노이드** (긴 코일) 내부")
     st.latex(r"B=\mu_0 n I \quad\bigl(n=\tfrac{N}{L}\bigr)")
     safe_img(
-        "/workspaces/currentMagField/image/LGDisplayExtension_CAwdzkkY8C.png",
+        "/workspaces/currentMagField/image/solenoid_direction.png",
         caption="솔레노이드 전류·자기장 방향")
     st.markdown("""
 * **방향** : 전류 방향으로 오른손 손가락을 감으면 **엄지**가 축 방향 \(B\)  
 * **특징** : 내부 균일장, \(B ∝ nI\)
 """)
     safe_img(
-        "/workspaces/currentMagField/image/LGDisplayExtension_LYgZWjDXWo.png",
+        "/workspaces/currentMagField/image/solenoid_iron_filings.png",
         caption="솔레노이드 주변 철가루 분포")
 
         # ── 요약 ─────────────────────────────────────────────
@@ -412,7 +412,7 @@ def page_theory():
 
 # ─── 예제 풀이 ─────────────────────────────────────────────
 def page_example():
-    safe_img("/workspaces/currentMagField/image/예제그림1.png", use_column_width=True)
+    safe_img("/workspaces/currentMagField/image/example_quiz_1.png", use_column_width=True)
     st.markdown("""
 그림은 세 학생 민수, 철수, 영희가 칠판에 그려진 전류가 흐르는 가늘고 무한히 긴 직선 도선 주위의 P점과 Q점에 생기는 자기장에 대해 대화하는 모습을 나타낸 것이다.
 
@@ -458,7 +458,7 @@ def page_example():
 # ─── 수능응용 문제 ───────────────────────────────────────────────
 def page_suneung():
     # 문제 그림(있다면)
-    safe_img("/workspaces/currentMagField/image/수능문제그림.png",
+    safe_img("/workspaces/currentMagField/image/suneung_quiz_fig.png",
              caption="세 도선 A·B·C와 점 P, Q")
 
         # ── 문제 지문 (LaTeX 완전 적용) ────────────────────────────
@@ -505,7 +505,7 @@ $xy$ 평면 위에 고정되어 있다. **A** 전류의 방향은 $-x$ 축이다
 
         # 해설 그림은 정답/오답 관계없이 항상 출력
         safe_img(
-            "/workspaces/currentMagField/image/수능 해설.png",
+            "/workspaces/currentMagField/image/suneung_quiz_solution.png",
             caption="해설",
             use_column_width=True
         )
@@ -521,12 +521,12 @@ $xy$ 평면 위에 고정되어 있다. **A** 전류의 방향은 $-x$ 축이다
 def page_essay():
     # 그림 1 – 전동기 개념
     safe_img(
-        "/workspaces/currentMagField/image/전동기.png",
+        "/workspaces/currentMagField/image/motor_structure.png",
         caption="전동기 구조와 작동 개념")
 
     # 그림 2 – 자도선 힘 시각화
     safe_img(
-        "/workspaces/currentMagField/image/LGDisplayExtension_Ab7JBG34Ft.png",
+        "/workspaces/currentMagField/image/force_on_wire.png",
         caption="자기장 속 도선이 받는 힘 (F = I L × B)")
 
     # 과제 입력란
