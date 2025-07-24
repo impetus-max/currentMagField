@@ -1,296 +1,545 @@
-# =====================================================================
-#   고2 물리 – 전류의 자기장  ▶  ‘참여형’ Streamlit 수업 앱  (rev 6: 인트로만 숨김)
-# =====================================================================
-import streamlit as st, numpy as np, matplotlib.pyplot as plt
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib import font_manager
-import os, datetime, time
+import matplotlib.patches as patches
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.transforms import Affine2D
+import os, datetime
 
-# ---------------- (선택) Google-Sheets 기록 --------------------------
+# ──────────────────  페이지·글꼴·글씨  ────────────────────────────
+st.set_page_config(page_title="고등학교 2학년 물리학1 전류의 자기장",
+                   page_icon="🧲", layout="wide")
+st.markdown("""
+<style>
+html,body,[class*="st-"]{font-size:18px!important;}
+</style>""", unsafe_allow_html=True)
+
+FONT_DIR="/workspaces/currentMagField/fonts"
+for w in ("Regular","Bold","ExtraBold"):
+    fp=f"{FONT_DIR}/NanumGothic-{w}.ttf"
+    if os.path.exists(fp):
+        font_manager.fontManager.addfont(fp)
+reg=f"{FONT_DIR}/NanumGothic-Regular.ttf"
+if os.path.exists(reg):
+    plt.rcParams["font.family"]=font_manager.FontProperties(fname=reg).get_name()
+plt.rcParams["axes.unicode_minus"]=False
+
+# ──────────────────  유틸  ────────────────────────────────────────
+def safe_img(path, **kw):
+    if os.path.exists(path): st.image(path, **kw)
+    else: st.warning(f"⚠️ 파일 없음: {os.path.basename(path)}")
+
 def append_row_to_gsheet(row):
     try:
         import gspread, oauth2client.service_account
-        creds_path = os.getenv("GSHEET_JSON", "")
-        if not os.path.exists(creds_path):
-            return
-        scope = ["https://www.googleapis.com/auth/spreadsheets",
-                 "https://www.googleapis.com/auth/drive"]
-        creds = oauth2client.service_account.ServiceAccountCredentials \
-                .from_json_keyfile_name(creds_path, scope)
-        gspread.authorize(creds).open("MagFieldResponses") \
-               .sheet1.append_row(row, value_input_option="USER_ENTERED")
-    except Exception:
-        pass
-# --------------------------------------------------------------------
+        cred=os.getenv("GSHEET_JSON","")
+        if not os.path.exists(cred): return
+        scope=["https://www.googleapis.com/auth/spreadsheets",
+               "https://www.googleapis.com/auth/drive"]
+        creds=oauth2client.service_account.ServiceAccountCredentials.\
+              from_json_keyfile_name(cred,scope)
+        gspread.authorize(creds).open("MagFieldResponses").sheet1.append_row(
+            row,value_input_option="USER_ENTERED")
+    except Exception as e:
+        st.sidebar.error(f"GSheet 기록 실패: {e}")
 
-# ---------------- 한글 폰트 -----------------------------------------
-FONT_DIR = "/workspaces/currentMagField/fonts"
-for w in ("Regular", "Bold", "ExtraBold"):
-    fp = f"{FONT_DIR}/NanumGothic-{w}.ttf"
-    if os.path.exists(fp):
-        font_manager.fontManager.addfont(fp)
-if os.path.exists(f"{FONT_DIR}/NanumGothic-Regular.ttf"):
-    plt.rcParams["font.family"] = font_manager.FontProperties(
-        fname=f"{FONT_DIR}/NanumGothic-Regular.ttf").get_name()
-plt.rcParams["axes.unicode_minus"] = False
-# --------------------------------------------------------------------
-
-# ---------------- 차시·메뉴 -----------------------------------------
-steps_1_all = [
-    "물리학1 전류의 자기작용",     # 👈 인트로(실제 첫화면, 메뉴/진행률/체크에는 숨김)
-    "수업 소개",
-    "학습 목표",
-    "전류의 자기장 개념 확인",
+# ──────────────────  차시·메뉴  ───────────────────────────────────
+steps_1_all=[
+    "물리학1 전류의 자기작용","수업 소개","학습 목표","자기장 개념 확인",
     "기본 개념 문제 (1차시)",
     "전류의 자기장 실험1 : 직선 도선 주위의 자기장 확인하기",
     "전류의 자기장 실험2 : 원형 도선 주위의 자기장 확인하기",
     "전류의 자기장 실험3 : 솔레노이드 주위의 자기장 확인하기",
     "실험 결과 작성하기",
 ]
-steps_1_menu = steps_1_all[1:]  # 👈 메뉴/진행률/체크에는 인트로(0번) 빼고!
-steps_2 = [
-    "기본 개념 문제 (2차시)",
-    "전류에 의한 자기장 이론 정리",
-    "예제 풀이",
-    "수능응용 문제",
-    "탐구 과제",
-    "피드백 요약",
+steps_2=[
+    "기본 개념 문제 (2차시)","전류에 의한 자기장 이론 정리",
+    "예제 풀이","수능응용 문제","탐구 과제","피드백 요약",
 ]
-steps_all = steps_1_all + steps_2  # 전체 페이지
-N1, N2 = len(steps_1_menu), len(steps_2)
-# --------------------------------------------------------------------
+steps_all=steps_1_all+steps_2
+steps_1_menu=steps_1_all[1:]
+N1,N2=len(steps_1_menu),len(steps_2)
 
-# ---------------- 세션 상태 -----------------------------------------
-if "done"         not in st.session_state: st.session_state.done   = [False]*len(steps_all)
-if "current"      not in st.session_state: st.session_state.current = 0
+# ──────────────────  세션 상태  ───────────────────────────────────
+if "done" not in st.session_state: st.session_state.done=[False]*len(steps_all)
+if "current" not in st.session_state: st.session_state.current=0
 if "student_info" not in st.session_state:
-    st.session_state.student_info = {"학번":"", "성명":"", "이동반":""}
-if "roster" not in st.session_state: st.session_state.roster = []
-# --------------------------------------------------------------------
+    st.session_state.student_info={"학번":"","성명":"","이동반":""}
+if "roster" not in st.session_state: st.session_state.roster=[]
 
-# ---------------- 사이드바 : 게시판 + 입력 --------------------------
+# ──────────────────  사이드바  ────────────────────────────────────
 with st.sidebar:
-    # 접속 학생 게시판
     st.markdown("#### 🗂️ 접속 학생")
-    if st.session_state.roster:
-        for tag in st.session_state.roster:
-            st.markdown(f"- {tag}")
-    else:
-        st.markdown("_아직 없음_")
+    for tag in st.session_state.roster or ["_아직 없음_"]: st.markdown(f"- {tag}")
     st.markdown("---")
-
 st.sidebar.title("📚 전류의 자기장")
-st.sidebar.success("버튼을 누르면 해당 차시로 이동하며 ✅ 로 표시됩니다.")
-
 st.sidebar.subheader("학습자 정보")
 for k in ("학번","성명","이동반"):
-    st.session_state.student_info[k] = st.sidebar.text_input(
-        k, st.session_state.student_info[k], key=f"info_{k}")
+    st.session_state.student_info[k]=st.sidebar.text_input(
+        k,st.session_state.student_info[k],key=f"in_{k}")
 if st.sidebar.button("정보 저장"):
-    info = st.session_state.student_info
-    tag  = f"{info['학번']} {info['성명']}"
-    if tag and tag not in st.session_state.roster:
-        st.session_state.roster.append(tag)
+    info=st.session_state.student_info
+    tag=f"{info['학번']} {info['성명']}".strip()
+    if info["학번"] and info["성명"]:
+        if tag not in st.session_state.roster: st.session_state.roster.append(tag)
         append_row_to_gsheet([datetime.datetime.now().isoformat(),
-                              *info.values(), "정보 입력"])
+                              *info.values(),"정보 입력"])
         st.sidebar.success("저장 완료!")
+    else: st.sidebar.warning("학번·성명을 입력하세요.")
 
 st.sidebar.divider()
+st.sidebar.success("💡버튼으로 이동하고, 완료 시 ✅ 표시")
 
-# ---- 1차시 ---------------------------------------------------------
-# ✅ 인트로(0번)는 메뉴, 진행률, 체크에서 제외! (start=1)
-p1 = sum(st.session_state.done[1:1+N1]) / N1
-st.sidebar.markdown(f"### 1차시 수업 진행률 : {int(p1*100)} %")
+# 진행률
+p1=sum(st.session_state.done[1:1+N1])/N1
+st.sidebar.markdown(f"### 1차시 진행률 : {int(p1*100)}%")
 st.sidebar.progress(p1)
-for offset, name in enumerate(steps_1_menu, start=1):  # 1부터!
-    i = offset
-    label = f"{'✅' if st.session_state.done[i] else '○'} {name}"
-    if st.sidebar.button(label, key=f"btn1_{i}"):
-        st.session_state.current, st.session_state.done[i] = i, True
+for i,n in enumerate(steps_1_menu,start=1):
+    label=f"{'✅' if st.session_state.done[i] else '○'} {n}"
+    if st.sidebar.button(label,key=f"btn1_{i}"):
+        st.session_state.current,st.session_state.done[i]=i,True
 
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
-# ---- 2차시 ---------------------------------------------------------
-p2 = sum(st.session_state.done[len(steps_1_all):]) / N2
-st.sidebar.markdown(f"### 2차시 수업 진행률 : {int(p2*100)} %")
+p2=sum(st.session_state.done[len(steps_1_all):])/N2
+st.sidebar.markdown(f"### 2차시 진행률 : {int(p2*100)}%")
 st.sidebar.progress(p2)
-for j, name in enumerate(steps_2, start=len(steps_1_all)):
-    label = f"{'✅' if st.session_state.done[j] else '○'} {name}"
-    if st.sidebar.button(label, key=f"btn2_{j}"):
-        st.session_state.current, st.session_state.done[j] = j, True
-# --------------------------------------------------------------------
+for i,n in enumerate(steps_2,start=len(steps_1_all)):
+    label=f"{'✅' if st.session_state.done[i] else '○'} {n}"
+    if st.sidebar.button(label,key=f"btn2_{i}"):
+        st.session_state.current,st.session_state.done[i]=i,True
 
-# ---------------- 본문 헤더 ----------------------------------------
-step_name = steps_all[st.session_state.current]
+step_name=steps_all[st.session_state.current]
 st.header(f"📝 {step_name}")
-# --------------------------------------------------------------------
 
-# ---------------- 각 페이지 함수 ------------------------------------
-
+# ──────────────────  페이지 함수들  ────────────────────────────────
 def page_intro_physics():
-    st.markdown("""
-    # 
-    ---
-    🌟 전류가 흐를 때 나타나는 자기적 효과는 전기와 자기의 연결고리이자  
-    현대 과학·공학의 출발점입니다.
-
-    *이 단원에서는 전류와 자기장, 실험, 그리고 대표 응용 사례까지  
-    탐구하고 직접 체험하는 활동 중심 수업이 시작됩니다!*
-    """)
-    st.image("https://upload.wikimedia.org/wikipedia/commons/1/13/Magnetic_Field_Lines.png",
-             caption="전류에 의한 자기장 실험: 자기력선 시각화")
+    st.markdown("""#
+---
+🌟 전류가 흐르면 발생하는 자기장은 전기·자기의 연결고리입니다.""")
+    c1,c2=st.columns(2)
+    with c1: safe_img("/workspaces/currentMagField/image/스피커.webp",
+                      caption="스피커",use_column_width=True)
+    with c2: safe_img("/workspaces/currentMagField/image/기중기.jpg",
+                      caption="전자석 기중기",use_column_width=True)
 
 def page_overview():
-    st.image("/workspaces/currentMagField/image/LGDisplayExtension_4QksDd6Twe.png",
-             caption="외르스테드의 전류·자기장 발견 (1820)")
-    st.markdown("""
-    **전류가 흐르면 나침반이 돌아간다!**  
-    외르스테드 실험으로 시작된 ‘전류의 자기장’을 두 차시에 걸쳐  
-    개념 → 실험 → 수능 문제까지 완전 정복합니다.
-    """)
+    safe_img("/workspaces/currentMagField/image/LGDisplayExtension_4QksDd6Twe.png",
+             caption="외르스테드의 실험(1820)")
+    st.markdown("외르스테드 실험으로부터 시작된 전류의 자기장 : 개념 → 실험 → 수능 문제 순으로 학습합니다.")
 
 def page_goal():
-    st.markdown("""
-    ### 학습 목표  
-    1. 자기장의 기본 개념 파악  
-    2. 전류가 만드는 **자기장 방향·크기** 이해  
-    3. 직선·원형·솔레노이드가 만드는 **자기장 세기 계산**  
-    """)
+    st.markdown("""1. 전류에 의한 자기 작용이 일상생활에서 적용되는 다양한 예를 찾아 그 원리를 설명할 수 있다.
+  
+2. 전류가 만드는 자기장 방향과 세기를 구할 수 있다.""")
 
+# ─── page_concept : 막대자석 시뮬레이터 ───────────────────────────
 def page_concept():
-    st.subheader("자기장 / 자기력선 개념")
-    colL, colR = st.columns(2)
-    with colL:
-        st.image("/workspaces/currentMagField/image/1601_4534_219.png",
-                 caption="막대자석 철가루 실험")
-    with colR:
-        st.markdown("""
-        **자기장**: 자석·전류 주위 힘의 공간  
-        **자기력선**: N→S, 교차❌  
-        **오른손 법칙**: 엄지(전류) → 손가락(자기장)
-        """)
-    st.markdown("---")
-   def page_concept():
-    st.subheader("자기장 / 자기력선 개념")
-    # ... (좌우 설명 카드 등 기존 코드)
+    L,R=st.columns(2)
+    with L:
+        safe_img("/workspaces/currentMagField/image/LGDisplayExtension_7UEwvXBegJ.png",
+                 caption="막대자석 자기력선·나침반")
+    with R:
+        st.markdown("**자기장**: 자기력이 작용하는 공간")
+        st.markdown("**자기력선**: 눈에 보이지 않는 자기장을 나타낸 가상의 선")
+        st.markdown("""∙ N극에서 S극으로 향하는 폐곡선  
+∙ 갈라지거나 교차하지 않음  
+∙ 간격이 좁을수록 자기장 세기 ↑  
+∙ 한 점에서의 접선 방향 = 그 점의 자기장 방향""")
 
     st.markdown("---")
-    def page_concept():
-    st.subheader("자기장 / 자기력선 개념")
-    # (중략)  
-    st.markdown("---")
-    st.markdown("### ⚡ 자기장 시뮬레이터")
+    st.markdown("### ⚡막대자석 주위 자기력선 시뮬레이션")
 
-    import numpy as np
-    import matplotlib.pyplot as plt
+    orient = st.sidebar.selectbox("자석 축",["세로(z)","가로(x)","대각"],0)
+    dens   = st.sidebar.slider("화살표 밀도",15,40,25,5)
+    show_f = st.sidebar.checkbox("자기력선",True)
+    show_c = st.sidebar.checkbox("색상",True)
+    show_v = st.sidebar.checkbox("화살표",True)
+    strength=st.slider("🔧 막대자석 단극 세기 조절",0.5,3.0,1.0,0.1)
 
-    x = np.linspace(-3, 3, 30)
-    y = np.linspace(-3, 3, 30)
-    X, Y = np.meshgrid(x, y)
+    mag_len,mag_w=1.2,0.4
+    if orient=="세로(z)":
+        north=np.array([0,mag_len/2]); south=-north
+    elif orient=="가로(x)":
+        north=np.array([mag_len/2,0]); south=-north
+    else:
+        north=np.array([mag_len/2*np.cos(np.pi/4),mag_len/2*np.sin(np.pi/4)]); south=-north
 
-    mx, my = 0, 1  # 자성모멘트 (y축 방향)
+    x=np.linspace(-3,3,dens); y=np.linspace(-3,3,dens); X,Y=np.meshgrid(x,y)
+    RX,RY=X-north[0],Y-north[1]; SX,SY=X-south[0],Y-south[1]
+    rN=np.sqrt(RX**2+RY**2)+1e-9; rS=np.sqrt(SX**2+SY**2)+1e-9
+    Bx=strength*(RX/rN**3 - SX/rS**3); By=strength*(RY/rN**3 - SY/rS**3)
 
-    R = np.sqrt(X**2 + Y**2)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        RX = X / R
-        RY = Y / R
-        mdotr = mx * RX + my * RY
-        Bx = (3 * mdotr * RX - mx) / (R**3)
-        By = (3 * mdotr * RY - my) / (R**3)
-        mask = (R < 0.5)
-        Bx[mask] = 0
-        By[mask] = 0
+    inside=(np.abs(X)<mag_w/2)&(np.abs(Y)<mag_len/2)
+    Bx[inside]=0; By[inside]=strength
+    B=np.sqrt(Bx**2+By**2); B[inside]=np.max(B)*0.7
 
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_aspect('equal')
-    ax.set_xlim(-3, 3)
-    ax.set_ylim(-3, 3)
-    ax.axis('off')
+    fig,ax=plt.subplots(figsize=(6,6))
+    ax.set_aspect('equal'); ax.set_xlim(-3,3); ax.set_ylim(-3,3)
+    ax.grid(True,ls='--',alpha=0.3)
 
-    ax.add_patch(plt.Rectangle((-0.2, -1.5), 0.4, 3.0, color='red', zorder=1))
-    ax.add_patch(plt.Rectangle((-0.2,  1.0), 0.4, 0.5, color='blue', zorder=2))
-    ax.text(0, 1.7, 'N', fontsize=16, color='blue', ha='center')
-    ax.text(0, -1.7, 'S', fontsize=16, color='red', ha='center')
+    if orient=="세로(z)":
+        ax.add_patch(patches.Rectangle((-mag_w/2,0),mag_w,mag_len/2,
+                                       fc="#DC143C",ec="k"))
+        ax.add_patch(patches.Rectangle((-mag_w/2,-mag_len/2),mag_w,mag_len/2,
+                                       fc="#4169E1",ec="k"))
+    elif orient=="가로(x)":
+        ax.add_patch(patches.Rectangle((0,-mag_w/2),mag_len/2,mag_w,
+                                       fc="#DC143C",ec="k"))
+        ax.add_patch(patches.Rectangle((-mag_len/2,-mag_w/2),mag_len/2,mag_w,
+                                       fc="#4169E1",ec="k"))
+    else:
+        t=Affine2D().rotate_deg(45)+ax.transData
+        ax.add_patch(patches.Rectangle((-mag_w/2,0),mag_w,mag_len/2,
+                                       fc="#DC143C",ec="k",transform=t))
+        ax.add_patch(patches.Rectangle((-mag_w/2,-mag_len/2),mag_w,mag_len/2,
+                                       fc="#4169E1",ec="k",transform=t))
+    ax.text(north[0],north[1]+0.2,"N",color="white",ha="center",weight="bold")
+    ax.text(south[0],south[1]-0.2,"S",color="white",ha="center",weight="bold")
 
-    ax.quiver(X, Y, Bx, By, color='royalblue', angles='xy',
-              scale=1, width=0.012, scale_units='xy', minlength=0.04)
+    if show_c:
+        cmap=LinearSegmentedColormap.from_list("mag",["white","skyblue","royalblue","navy"])
+        cf=ax.contourf(X,Y,B,levels=30,cmap=cmap,alpha=0.6)
+        fig.colorbar(cf,ax=ax,shrink=0.8,label="|B|")
+    if show_f:
+        ax.streamplot(X, Y, Bx, By, color="k",
+                    density=1.2*strength, linewidth=1)
 
+    if show_v: ax.quiver(X,Y,Bx/B,By/B,B,cmap="viridis",scale=20/strength,width=0.002)
+
+    ax.set_title("막대자석 주변 자기력선")
     st.pyplot(fig)
 
-
-
+# ─── 기본 개념 문제 (1차시) ───────────────────────────────────────
 def page_basic_1():
-    q = st.radio("자기력선 방향은?", ["N→S", "S→N"])
-    if st.button("채점 (1차시)"):
-        st.success("정답") if q=="N→S" else st.error("오답")
-        append_row_to_gsheet([datetime.datetime.now().isoformat(),
-                              *st.session_state.student_info.values(),"기본1",q])
+    safe_img("/workspaces/currentMagField/image/막대자석 문제.png")
+    ans=st.text_input("A 지점에 있는 나침반의 N극이 가리키는 방향은?")
+    if st.button("채점"):
+        ok="동" in ans
+        # ── before ───────────────────────────────────────────────
+# st.success("🎉 정답입니다!") if ok else st.error("❌ 오답입니다. 다시 생각해보세요.")
 
-def page_exp(label):
-    st.markdown(label)
-    st.image("https://upload.wikimedia.org/wikipedia/commons/3/32/Magnetic_field_due_to_current.png",
-             caption="나침반으로 확인한 원형 자기력선 예시")
-    obs = st.text_area("관찰 내용")
-    if st.button("제출"):
-        append_row_to_gsheet([datetime.datetime.now().isoformat(),
-                              *st.session_state.student_info.values(),label.split()[0],obs[:50]])
-        st.success("제출 완료!")
+# ── after (수정) ─────────────────────────────────────────
+        if ok:
+            st.success("🎉 정답입니다!")
+        else:
+            st.error("❌ 오답입니다. 다시 생각해보세요.")
 
+        
+# ─── 실험 1·2·3 공통 함수 ────────────────────────────────────────
+# ─── 실험 공통 함수 ───────────────────────────────────────
+def page_exp(question_text: str, label_code: str):
+    info = {
+        "실험1": { "img":"/workspaces/currentMagField/image/LGDisplayExtension_r681yHPJNP직선.png",
+                   "caption":"직선 도선 주위의 나침반 관찰하기 : 그림처럼 회로를 연결하고 스위치를 닫았을 때, 직선 도선 주위에 있는 나침반의 N극이 어떻게 움직이는지 관찰한다. " },
+        "실험2": { "img":"/workspaces/currentMagField/image/LGDisplayExtension_cU54B9ibwp원형.png",
+                   "caption":"원형 도선 중심·주위의 나침반 관찰하기 : 그림처럼 회로를 연결하고 스위치를 닫았을 때, 원형 도선의 가운데에 있는 나침반의 N극이 어떻게 움직이는지 관찰한다." },
+        "실험3": { "img":"/workspaces/currentMagField/image/LGDisplayExtension_w3NvZAdYL2솔.png",
+                   "caption":"솔레노이드 내부·외부의 나침반 관찰하기 : 그림처럼 회로를 연결하고 스위치를 닫았을 때, 솔레노이드 중심축에 위치한 나침반의 N극이 어떻게 움직이는지 관찰한다." },
+    }[label_code]
+
+    st.markdown(f"### {label_code}")
+    safe_img(info["img"], caption=info["caption"])
+
+    # ── 레이블에서 question_text 제거 ───────────────────
+    obs = st.text_area(
+        "전류가 흐를 때, 나침반의 N극이 어떻게 움직이는지 설명하시오.",
+        height=150,
+        key=f"ta_{label_code}"
+    )
+
+    if st.button("제출", key=f"btn_{label_code}"):
+        if obs:
+            append_row_to_gsheet([
+                datetime.datetime.now().isoformat(),
+                *st.session_state.student_info.values(),
+                label_code, obs[:300]
+            ])
+            st.success("제출 완료")
+        else:
+            st.warning("내용 입력")
+
+
+# ─── 실험 결과 작성하기 – 3개 파트 ────────────────────────────────
 def page_report():
-    txt = st.text_area("세 실험 결과 비교·정리")
-    if st.button("결과 제출"):
-        append_row_to_gsheet([datetime.datetime.now().isoformat(),
-                              *st.session_state.student_info.values(),"실험 결과",txt[:100]])
-        st.success("제출 완료!")
+    txt1=st.text_area("(1) 직선 전류가 만드는 자기장의 세기에 영향을 미치는 요소를 확인할 수 있는 실험 방법을 요약하시오.\n"
+                      "[※ 새로운 실험을 설계하거나, 검색한 실험 방법을 설명하면 됩니다.]",
+                      height=150,key="rep1")
+    if st.button("제출 (1)"):
+        if txt1:
+            append_row_to_gsheet([datetime.datetime.now().isoformat(),
+                                  *st.session_state.student_info.values(),"실험결과1",txt1[:500]])
+            st.success("제출 완료 (1)")
+        else: st.warning("내용 입력")
 
-# ---- 2차시 ---------------------------------------------------------
+    st.markdown("---")
+    txt2=st.text_area("(2) 직선 전류가 만드는 자기장의 세기에 영향을 미치는 요소와 자기장 세기의 관계를 설명하시오.",
+                      height=150,key="rep2")
+    if st.button("제출 (2)"):
+        if txt2:
+            append_row_to_gsheet([datetime.datetime.now().isoformat(),
+                                  *st.session_state.student_info.values(),"실험결과2",txt2[:500]])
+            st.success("제출 완료 (2)")
+        else: st.warning("내용 입력")
+
+    st.markdown("---")
+    txt3=st.text_area("(3) 새로운 아이디어 제시, 자신의 역할, 잘하거나 좋았던 점을 추가로 작성하시오.",
+                      height=150,key="rep3")
+    if st.button("제출 (3)"):
+        if txt3:
+            append_row_to_gsheet([datetime.datetime.now().isoformat(),
+                                  *st.session_state.student_info.values(),"실험결과3",txt3[:500]])
+            st.success("제출 완료 (3)")
+        else: st.warning("내용 입력")
+
+# ─── 기본 개념 문제 (2차시) ───────────────────────────────────────
 def page_basic_2():
-    q = st.radio("솔레노이드 내부 B 식은?", ["μ₀ n I","μ₀I/2R"])
-    if st.button("채점 (2차시)"):
-        st.success("정답") if q=="μ₀ n I" else st.error("오답")
-def page_theory():
+    safe_img("/workspaces/currentMagField/image/예제 문제 그림.png",use_column_width=True)
     st.markdown("""
-    ### 전류에 의한 자기장 공식  
-    | 형태 | B | 비고 |
-    |------|---|------|
-    | 직선 도선 | \(B=\\frac{\\mu_0 I}{2\\pi r}\)| \(r\): 거리 |
-    | 원형 도선 중심 | \(B=\\frac{\\mu_0 I}{2R}\)| \(R\): 반지름 |
-    | 솔레노이드 내부 | \(B=\\mu_0 n I\)| \(n=N/L\) |
-    """, unsafe_allow_html=True)
-def page_example():
-    val = st.number_input("전류 2 A, 거리 5 cm → B (T)", format="%.6f")
-    if st.button("채점 예제"):
-        B = round(4*np.pi*1e-7/(2*np.pi)*2/0.05,6)
-        st.success(f"정답 {B}") if abs(val-B)<1e-6 else st.error(f"오답, 정답 {B}")
-def page_suneung():
-    sel = st.radio("반지름 0.1 m, 3 A 원형 도선 중심 B?",["6×10⁻⁶","1.2×10⁻⁵","6×10⁻⁵","1.2×10⁻⁴","3.8×10⁻⁶"])
-    if st.button("채점 응용"):
-        st.success("정답 1.2×10⁻⁵") if sel.startswith("1.2") else st.error("오답")
-def page_essay():
-    st.text_area("외르스테드 실험 설명 + 실생활 응용 1가지")
-def page_feedback():
-    st.text_area("수업 소감·질문·어려웠던 점")
+그림은 직선 도선 아래 나침반 자침을 **북-남 방향**으로 맞춘 실험 장치이다.  
+가변 저항을 조절하며 도선 전류와 자침 움직임을 관찰하였다.
+""")
+    st.markdown("**1. 실험 과정에서 관찰한 내용으로 옳지 않은 것은?**")
+    opts=[
+        "① 스위치가 열려 있을 때 자침의 극은 북쪽을 가리킨다.",
+        "② 스위치를 닫으면 자침의 극은 동쪽으로 움직인다.",
+        "③ 전류를 증가시키면 자침의 극은 남쪽을 가리킨다.",
+        "④ 전류를 증가시키면 자침의 극이 회전한 각도가 증가한다.",
+        "⑤ 전류의 방향을 반대로 바꾸면 자침의 극은 서쪽으로 움직인다.",
+    ]
+    sel=st.radio("선택",opts,index=0,key="basic2_sel")
+    if st.button("채점(2차시)"):
+        ok=sel.startswith("③")   # 정답 ③
+        st.success("정답") if ok else st.error("오답")
+        append_row_to_gsheet([datetime.datetime.now().isoformat(),
+                              *st.session_state.student_info.values(),"기본2",sel,ok])
+        st.markdown("""
+<풀이>  
+① 전류 없음 → 지구 B(북)  
+② 전류 ON → 전류 B(동) ⇒ 자침 동쪽  
+④ I ↑ → 전류 B ↑ ⇒ 회전각 ↑  
+⑤ 전류 방향 반대 ⇒ 전류 B 서쪽 ⇒ 자침 서쪽  
+③ 지구 B(북) + 전류 B(동) ⇒ 합성 B = 북-동 (남쪽 아님)
+""")
 
-# ---------------- 페이지 매핑 ---------------------------------------
-PAGES = {
-    "물리학1 전류의 자기작용": page_intro_physics,
-    "수업 소개": page_overview,
-    "학습 목표": page_goal,
-    "전류의 자기장 개념 확인": page_concept,
-    "기본 개념 문제 (1차시)": page_basic_1,
+# ─── 전류에 의한 자기장 이론 정리 ──────────────────────────────
+def page_theory():
+    st.markdown("## ⊙ 전류가 만드는 자기장 — 앙페르(오른나사) 법칙")
+
+    # ── 공통 개념 그림 ─────────────────────────────────────
+    safe_img(
+        "/workspaces/currentMagField/image/LGDisplayExtension_hJScqL0q2q.png",
+        caption="앙페르 법칙 개념도",
+        use_column_width=True
+    )
+
+    # 1️⃣ 직선 도선 -------------------------------------------------
+    st.markdown("### 1. 무한히 긴 **직선 도선**")
+    st.latex(r"B=\frac{\mu_0 I}{2\pi r}")
+    safe_img(
+        "/workspaces/currentMagField/image/LGDisplayExtension_8u29lUSHQC.png",
+        caption="오른나사(오른손) 법칙으로 방향 구하기",
+        use_column_width=True
+    )
+    st.markdown("""
+* **방향** : 전류 방향을 오른손 **엄지**로, 휘감는 **네 손가락**이 자기장 방향  
+* **세기** : 전류 \(I\) ∝, 거리 \(r^{-1}\) ∝ \(B\)
+""")
+
+    # 2️⃣ 원형 도선 중심 -------------------------------------------
+    st.markdown("### 2. **원형 도선** (도선 중심)")
+    st.latex(r"B=\frac{\mu_0 I}{2R}")
+
+    # ── 원형 도선 그림 2장 (좌·우) ─────────────────────────
+    c1, c2 = st.columns(2)
+    with c1:
+        safe_img(
+            "/workspaces/currentMagField/image/LGDisplayExtension_n1x26TXV02.png",
+            caption="원형 도선 중심의 자기장",
+            use_column_width=True
+        )
+    with c2:
+        safe_img(
+            "/workspaces/currentMagField/image/LGDisplayExtension_Q9k6rW0A72.png",
+            caption="원형 도선의 자기력선 패턴",
+            use_column_width=True
+        )
+
+    st.markdown("""
+* **방향** : 오른손 네 손가락을 전류 방향으로 감으면 **엄지**가 중심축 \(B\)  
+* **세기** : 전류 \(I\) ∝, 반지름 \(R^{-1}\) ∝ \(B\)
+""")
+
+    # 3️⃣ 솔레노이드 내부 ------------------------------------------
+    st.markdown("### 3. **솔레노이드** (긴 코일) 내부")
+    st.latex(r"B=\mu_0 n I \quad\bigl(n=\tfrac{N}{L}\bigr)")
+    safe_img(
+        "/workspaces/currentMagField/image/LGDisplayExtension_CAwdzkkY8C.png",
+        caption="솔레노이드 전류·자기장 방향",
+        use_column_width=True
+    )
+    st.markdown("""
+* **방향** : 전류 방향으로 오른손 손가락을 감으면 **엄지**가 축 방향 \(B\)  
+* **특징** : 내부 균일장, \(B ∝ nI\)
+""")
+    safe_img(
+        "/workspaces/currentMagField/image/LGDisplayExtension_LYgZWjDXWo.png",
+        caption="솔레노이드 주변 철가루 분포",
+        use_column_width=True
+    )
+
+    # ── 요약 ─────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown(r"""
+#### ◎ 핵심 관계 요약
+* **직선 도선** : \(B ∝ \dfrac{I}{r}\)  
+* **원형 도선** : \(B ∝ \dfrac{I}{R}\)  
+* **솔레노이드** : \(B ∝ nI\)
+
+👉 전류를 키우거나, 도선을 가까이 하거나, 코일을 촘촘히 감으면 **자기장이 더 세진다**.
+""")
+
+
+# ─── 예제 풀이 ─────────────────────────────────────────────
+def page_example():
+    safe_img("/workspaces/currentMagField/image/예제그림1.png", use_column_width=True)
+    st.markdown("""
+그림은 세 학생 민수, 철수, 영희가 칠판에 그려진 전류가 흐르는 가늘고 무한히 긴 직선 도선 주위의 P점과 Q점에 생기는 자기장에 대해 대화하는 모습을 나타낸 것이다.
+
+> **문제**  
+> P점과 Q점에서 발생하는 자기장에 대해 옳게 설명한 사람만을 있는 대로 고른 것은?
+""")
+
+    opts = [
+        "① 민수", "② 철수", "③ 민수, 철수",
+        "④ 민수, 영희", "⑤ 민수, 철수, 영희"
+    ]
+    sel = st.radio("선택", opts, index=0, key="ex_sel")
+
+    if st.button("채점 예제"):
+        ok = sel.startswith("⑤")            # ← 정답은 ⑤
+        if ok:
+            st.success("정답 (⑤)")
+        else:
+            st.error("오답")
+
+        # ── 해설 추가 ───────────────────────────────────
+        st.markdown("""
+**해설**
+
+* **민수**: *“자기장의 세기는 전류의 세기에 비례한다.”*  
+  ✔️ 옳다 – \(B ∝ I\)
+
+* **철수**: *“앙페르 법칙(오른나사 법칙)에 따라 전류 방향이 바뀌면 자기장 방향도 바뀐다.”*  
+  ✔️ 옳다 – 방향 역전
+
+* **영희**: *“자기장의 세기는 도선으로부터의 수직 거리에 반비례한다.”*  
+  ✔️ 옳다 – \(B ∝ 1/r\) (따라서 P \(>\) Q)
+
+→ 세 명 모두 옳으므로 **⑤ 민수, 철수, 영희**가 정답.
+""")
+
+        append_row_to_gsheet([
+            datetime.datetime.now().isoformat(),
+            *st.session_state.student_info.values(),
+            "예제", sel, ok
+        ])
+
+# ─── 수능응용 문제 ───────────────────────────────────────────────
+def page_suneung():
+    # 문제 그림(있다면)
+    safe_img("/workspaces/currentMagField/image/수능응용_ABC.png",
+             caption="세 도선 A·B·C와 점 P, Q", use_column_width=True)
+
+    st.markdown(r"""
+**1.** 그림과 같이 무한히 긴 직선 도선 **A, B, C**(전류 \(I_0, I_B, I_0\))가  
+\(xy\) 평면 위에 고정되어 있다. **A** 전류의 방향은 \(-x\) 축이다.  
+
+표는 점 **P, Q**에서 세 도선 전류가 만드는 자기장 세기를 나타낸다  
+(P에서 A 전류의 자기장 세기는 \(B_0\)).  
+다음 \<보기>에서 옳은 내용을 **모두** 고르시오.
+""")
+
+    st.markdown(r"""
+<보기>  
+
+ㄱ. \(I_B = I_0\)  
+ㄴ. C 전류 방향은 \(-y\) 방향이다.  
+ㄷ. Q점에서 A·B·C 전류에 의한 총 \(\vec B\) 방향은 \(+z\) (xy평면에 수직)이다.
+""")
+
+    # ①~⑤ 선택지
+    opts = [
+        "① ㄱ",           # 1
+        "② ㄷ",           # 2  ← 정답
+        "③ ㄱ, ㄴ",       # 3
+        "④ ㄴ, ㄷ",       # 4
+        "⑤ ㄱ, ㄴ, ㄷ"    # 5
+    ]
+    sel = st.radio("선택", opts, index=0, key="sat_sel")
+
+    if st.button("채점 응용"):
+        ok = sel.startswith("②")          # 정답: ② ㄷ
+        if ok:
+            st.success("정답 (② ㄷ)")
+        else:
+            st.error("오답")
+
+        # 해설 그림은 정답/오답 관계없이 항상 출력
+        safe_img(
+            "/workspaces/currentMagField/image/수능 해설.png",
+            caption="해설",
+            use_column_width=True
+        )
+
+        append_row_to_gsheet([
+            datetime.datetime.now().isoformat(),
+            *st.session_state.student_info.values(),
+            "응용", sel, ok
+        ])
+
+
+# ─── 탐구 과제 ───────────────────────────────────────────────────
+def page_essay():
+    safe_img("/workspaces/currentMagField/image/도선힘.png",use_column_width=True)
+    txt=st.text_area("**탐구 과제 – ‘자기장 안에서 전류가 흐르는 도선이 받는 힘’ 설명하기**\n(위 그림 참고)",
+                     height=220)
+    if st.button("과제 제출"):
+        if txt:
+            append_row_to_gsheet([datetime.datetime.now().isoformat(),
+                                  *st.session_state.student_info.values(),"과제",txt[:500]])
+            st.success("제출 완료")
+        else: st.warning("내용 입력")
+
+# ─── 피드백 ─────────────────────────────────────────────────────
+def page_feedback():
+    txt=st.text_area("**수업에서 배운 점·느낀 점**과 **추가로 확인하고 싶은 실험**을 적어주세요.",
+                     height=200)
+    if st.button("피드백 제출"):
+        if txt:
+            append_row_to_gsheet([datetime.datetime.now().isoformat(),
+                                  *st.session_state.student_info.values(),"피드백",txt[:500]])
+            st.success("감사합니다")
+        else: st.warning("내용 입력")
+
+# ──────────────────  매핑 · 실행  ────────────────────────────────
+PAGES={
+    "물리학1 전류의 자기작용":page_intro_physics,
+    "수업 소개":page_overview,
+    "학습 목표":page_goal,
+    "자기장 개념 확인":page_concept,
+    "기본 개념 문제 (1차시)":page_basic_1,
     "전류의 자기장 실험1 : 직선 도선 주위의 자기장 확인하기":
-        lambda: page_exp("실험1 : 직선 도선 B 관찰"),
+        lambda: page_exp("직선 도선이 만드는 전류의 자기장 확인하기","실험1"),
     "전류의 자기장 실험2 : 원형 도선 주위의 자기장 확인하기":
-        lambda: page_exp("실험2 : 원형 도선 B 관찰"),
+        lambda: page_exp("원형 도선이 만드는 전류의 자기장 확인하기","실험2"),
     "전류의 자기장 실험3 : 솔레노이드 주위의 자기장 확인하기":
-        lambda: page_exp("실험3 : 솔레노이드 B 관찰"),
-    "실험 결과 작성하기": page_report,
-    "기본 개념 문제 (2차시)": page_basic_2,
-    "전류에 의한 자기장 이론 정리": page_theory,
-    "예제 풀이": page_example,
-    "수능응용 문제": page_suneung,
-    "탐구 과제": page_essay,
-    "피드백 요약": page_feedback,
+        lambda: page_exp("솔레노이드가 만드는 전류의 자기장 확인하기","실험3"),
+    "실험 결과 작성하기":page_report,
+    "기본 개념 문제 (2차시)":page_basic_2,
+    "전류에 의한 자기장 이론 정리":page_theory,
+    "예제 풀이":page_example,
+    "수능응용 문제":page_suneung,
+    "탐구 과제":page_essay,
+    "피드백 요약":page_feedback,
 }
-# ---------------- 실행 ----------------------------------------------
 PAGES[step_name]()
