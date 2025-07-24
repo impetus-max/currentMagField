@@ -25,10 +25,38 @@ if os.path.exists(reg):
     plt.rcParams["font.family"]=font_manager.FontProperties(fname=reg).get_name()
 plt.rcParams["axes.unicode_minus"]=False
 
+
 # ──────────────────  유틸  ────────────────────────────────────────
-def safe_img(path, **kw):
-    if os.path.exists(path): st.image(path, **kw)
-    else: st.warning(f"⚠️ 파일 없음: {os.path.basename(path)}")
+from pathlib import Path
+BASE_DIR = Path(__file__).parent          # streamlit_app.py 가 있는 폴더
+
+def safe_img(src: str, **kwargs):
+    """
+    src : ① '/workspaces/…/speaker.webp' 같은 절대경로
+          ② 'image/speaker.webp'   (프로젝트 상대폴더)
+          ③ 'speaker.webp'         (image 폴더 내부 파일명)
+    어느 형태로 호출해도, 존재하는 첫 경로를 찾아 이미지를 표시한다.
+    """
+    # 1) 인자로 받은 값을 그대로 시도
+    cand = [Path(src)]
+
+    # 2) 절대경로였으면 → 파일명만 추출해 ./image/ 로 재시도
+    cand.append(BASE_DIR / "image" / Path(src).name)
+
+    # 3) 상대경로였으면 ./    , ./image/ 두 군데 모두 시도
+    if not Path(src).is_absolute():
+        cand.append(BASE_DIR / src)          # ./image/abc.png 처럼 이미 상대라면 동일
+        cand.append(BASE_DIR / "image" / src)
+
+    # 실제 존재하는 첫 경로로 출력
+    for p in cand:
+        if p.exists():
+            st.image(str(p), **kwargs)
+            return
+
+    # 전부 실패 → 경고
+    st.warning(f"⚠️ 파일 없음: {Path(src).name}")
+
 
 def append_row_to_gsheet(row):
     try:
