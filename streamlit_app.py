@@ -8,22 +8,38 @@ from matplotlib.transforms import Affine2D
 import os, datetime
 
 # ──────────────────  페이지·글꼴·글씨  ────────────────────────────
-st.set_page_config(page_title="고등학교 2학년 물리학1 전류의 자기장",
-                   page_icon="🧲", layout="wide")
+st.set_page_config(
+    page_title="고등학교 2학년 물리학1 전류의 자기장",
+    page_icon="🧲",
+    layout="wide"
+)
 st.markdown("""
 <style>
-html,body,[class*="st-"]{font-size:18px!important;}
-</style>""", unsafe_allow_html=True)
+html, body, [class*="st-"] { font-size:18px !important; }
+</style>
+""", unsafe_allow_html=True)
 
-FONT_DIR="/workspaces/currentMagField/fonts"
-for w in ("Regular","Bold","ExtraBold"):
-    fp=f"{FONT_DIR}/NanumGothic-{w}.ttf"
-    if os.path.exists(fp):
-        font_manager.fontManager.addfont(fp)
-reg=f"{FONT_DIR}/NanumGothic-Regular.ttf"
-if os.path.exists(reg):
-    plt.rcParams["font.family"]=font_manager.FontProperties(fname=reg).get_name()
-plt.rcParams["axes.unicode_minus"]=False
+# ── 한글 폰트 설정 ──────────────────────────────────────────────
+from pathlib import Path
+from matplotlib import font_manager, rcParams
+
+FONT_DIR = Path(__file__).parent / "fonts"          # ▶ 저장소/fonts
+FONT_DIR.mkdir(exist_ok=True)                       # 폴더 없으면 생성
+font_path = FONT_DIR / "NanumGothic-Regular.ttf"    # 한글 지원 TTF
+
+# ① 폰트 파일이 폴더에 있을 때만 등록
+if font_path.exists():
+    font_manager.fontManager.addfont(str(font_path))
+    rcParams["font.family"] = font_manager.FontProperties(
+        fname=str(font_path)
+    ).get_name()
+else:
+    st.warning("⚠️ NanumGothic-Regular.ttf 폰트가 없습니다. "
+               "fonts 폴더에 추가하면 한글이 깨지지 않습니다.")
+
+# 수식·축에서 ‘−’ 기호 깨짐 방지
+rcParams["axes.unicode_minus"] = False
+
 
 
 # ──────────────────  유틸  ────────────────────────────────────────
