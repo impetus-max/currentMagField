@@ -479,7 +479,7 @@ def page_exp(title: str, exp_num: int, image_file: str):
         if st.session_state[key_txt]:
             with st.spinner("AI튜터가 피드백(마인드맵 포함)을 생성 중입니다..."):
                 prompt = (
-                    f"아래 학생 관찰 기록을 교사 시각으로 분석해 간단 · 긍정적 "
+                    f"아래 학생 관찰 기록을 교사 시각으로 분석해 부족한 답변을 보완해주고, 긍정적인 학습 유도를 해야 해"
                     f"피드백과 **마인드맵**(Markdown List) 형태 정리를 해줘.\n\n"
                     f"---\n{st.session_state[key_txt]}"
                 )
@@ -994,17 +994,15 @@ def page_feedback():
         with st.chat_message("assistant"):
             with st.spinner("AI튜터가 답변 작성 중..."):
                 ans = call_gpt(
-                    "You are a friendly physics tutor. Summarize key points "
-                    "and encourage the student. Respond in Korean.",
+                    "You are a friendly and thoughtful physics tutor. "
+                    "Encourage high school students to reflect on the class, "
+                    "write about what they found meaningful or challenging, "
+                    "and suggest new ideas or questions they might have. "
+                    "Respond in Korean.",
                     prompt, 500)
                 st.write(ans)
                 st.session_state.feedback_history.append(("assistant", ans))
-                info = st.session_state.student_info
-                append_row_to_gsheet([
-                    info["학번"], info["성명"], info["이동반"],
-                    get_check_tag(), "", "", "",
-                    f"피드백: {prompt[:500]}"
-                ])
+                
 
     st.markdown("---")
     st.subheader("학습 내용 정리 파일 (.txt)")
