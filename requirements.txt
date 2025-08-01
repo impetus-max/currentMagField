@@ -3,3 +3,5 @@ streamlit==1.35.0   # 웹앱 프레임워크
 numpy==1.26.4       # 수치 계산
 matplotlib==3.9.0   # 그래프 / 플롯 (일부 차시 확장용)
 openai>=1.0.0
+gspread
+google-auth

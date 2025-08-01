@@ -12,6 +12,15 @@ import matplotlib.patches as patches
 from mpl_toolkits.mplot3d import Axes3D  # 3D 시뮬레이션을 위해 추가
 import os, datetime
 from pathlib import Path
+from io import BytesIO
+
+
+# ------------------------------------------------------------
+#  Google Sheets ID (파일 제목과 무관하게 고정)
+# ------------------------------------------------------------
+SPREADSHEET_ID = "1uB43zGQyCt6FgO95_5Fc0Mkdy-djUGtmKMxCUweDp2A"
+
+
 
 # ------------------------------------------------------------
 #  FPDF (선택)
@@ -112,8 +121,10 @@ def safe_img(src: str, **kwargs):
             return
     st.warning(f"⚠️ 'image' 폴더에 파일 없음: {src}")
 
+# append_row_to_gsheet 함수를 아래 코드로 교체해주세요.
+
 def append_row_to_gsheet(row_data):
-    """Google Sheets 에 한 행 추가 (헤더: 학번, 성명, 이동반, 접속확인, (1), (2), (3), 피드백)"""
+    """Google Sheets 에 한 행 추가 (헤더: 학번, 성명, 이동반, 활동내용, (1), (2), (3), 피드백, 탐구)"""
     if not GSHEET_ENABLED:
         return False
     try:
@@ -126,15 +137,18 @@ def append_row_to_gsheet(row_data):
         spreadsheet = client.open("streamlit 앱 시트 관리")
         sheet = spreadsheet.worksheet("시트1")
 
-        while len(row_data) < 8:   # 8 컬럼 맞추기
+        # ▼▼▼ [수정] 컬럼 개수를 9개로 변경 ▼▼▼
+        while len(row_data) < 9:   # 9 컬럼 맞추기
             row_data.append("")
+        # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
         sheet.append_row(row_data, value_input_option="USER_ENTERED")
         return True
     except gspread.exceptions.SpreadsheetNotFound:
-        st.sidebar.error("GSheet 오류: 'streamlit 앱 시트 관리' 파일을 찾을 수 없습니다. 파일 이름을 확인하거나 공유 설정을 확인하세요.")
+        st.sidebar.error("GSheet 오류: 'streamlit 앱 시트 관리' 파일을 찾을 수 없습니다.")
         return False
     except gspread.exceptions.WorksheetNotFound:
-        st.sidebar.error("GSheet 오류: '시트1' 워크시트를 찾을 수 없습니다. 시트 이름을 확인하세요.")
+        st.sidebar.error("GSheet 오류: '시트1' 워크시트를 찾을 수 없습니다.")
         return False
     except Exception as e:
         st.sidebar.error(f"GSheet 오류: {e}")
@@ -215,6 +229,9 @@ with st.sidebar:
             if st.button("수정 완료", key="info_edit"):
                 st.rerun()
     else:
+        # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        # [수정된 부분] GSheet 기록 부분을 주석 처리하여 기능 비활성화
+        # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         with st.expander("학습자 정보 입력", expanded=True):
             for k in ("학번", "성명", "이동반"):
                 st.session_state.student_info[k] = st.text_input(
@@ -231,11 +248,12 @@ with st.sidebar:
                     if not any(tag in r for r in st.session_state.roster):
                         st.session_state.roster.append(full_tag)
 
-                    # GSheet – 접속 로그
-                    append_row_to_gsheet(
-                        [info["학번"], info["성명"], info["이동반"],
-                         full_tag, "", "", "", ""]
-                    )
+                    # GSheet – 접속 로그 기록 기능 제거 (주석 처리)
+                    # append_row_to_gsheet(
+                    #     [info["학번"], info["성명"], info["이동반"],
+                    #      full_tag, "", "", "", "접속"]
+                    # )
+                    
                     st.rerun()
                 else:
                     st.warning("학번과 성명을 모두 입력하세요.")
@@ -275,6 +293,16 @@ with st.sidebar:
         st.session_state.current = 0
         st.rerun()
 
+
+
+
+
+
+
+
+
+
+
 # 현재 페이지 이름
 step_name = steps_all[st.session_state.current]
 st.header(f"📝 {step_name}")
@@ -283,8 +311,8 @@ st.header(f"📝 {step_name}")
 #  페이지 함수들
 # ============================================================
 def page_intro_physics():
-    """메인 화면"""
-    st.title("물리학1: 전류의 자기작용 🧲")
+    """물리학1"""
+    st.title("물질과 전자기장 : 전류와 자기장 🧲")
     st.markdown("---")
 
     st.markdown("""
@@ -465,51 +493,131 @@ def page_exp(title: str, exp_num: int, image_file: str):
     if st.session_state[key_fb]:
         st.info(st.session_state[key_fb])
 
+# -*- coding: utf-8 -*-
+
+# ... (파일 상단에 다른 import 문들과 함께 아래 코드를 추가해주세요) ...
+from io import BytesIO
+
+
 def page_report():
     """실험 결과 작성 + AI튜터 종합 피드백 + GSheet 기록"""
     st.info("세 항목을 모두 작성 후 **최종 보고서 제출**을 눌러주세요.")
 
     # --- 이전 실험 1·2·3 리뷰 영역 -----------------------------
-    with st.expander("#실험 1·2·3 관찰 내용 & AI튜터 피드백 검토하기", expanded=False):
-        for i in range(1, 3+1):
+    with st.expander("실험 1·2·3 관찰 내용 & AI튜터 피드백 검토하기", expanded=False):
+        for i in range(1, 3 + 1):
             st.markdown(f"**실험 {i} 관찰**")
             st.markdown(st.session_state.get(f"exp{i}_text", "") or "_(미입력)_")
             st.markdown(f"**AI튜터 피드백**")
             st.markdown(st.session_state.get(f"exp{i}_feedback", "") or "_(없음)_")
             st.markdown("---")
 
-    # --- 이미 제출했으면 잠금 -------------------------------
+    # --- 이미 제출했으면 잠금 및 다운로드 UI 표시 -------------------------------
     if st.session_state.report_submitted:
-        st.success("보고서가 제출되었습니다.")
+        st.success("보고서가 성공적으로 제출되었습니다.")
+        
+        # 잠금된 입력 폼 표시
         for k, label in [("text1", "(1) 실험 방법 요약"),
-                         ("text2", "(2) 요소와 관계 설명"),
-                         ("text3", "(3) 아이디어 및 소감")]:
+                         ("text2", "(2) 전류와 자기장의 관계 설명"),
+                         ("text3", "(3) 실험 아이디어 및 소감")]:
             st.text_area(label, st.session_state.final_report[k],
-                         disabled=True, height=120)
+                         disabled=True, height=120, key=f"submitted_{k}")
+        
+        # AI 튜터 피드백 표시
         st.markdown("### 🤖 AI튜터 종합 피드백")
         st.info(st.session_state.final_report["feedback"])
+        
+        st.markdown("---")
+        st.subheader("📥 보고서 파일 다운로드")
+
+        # ----------------------------  파일 다운로드 데이터 구성  ----------------------------
+        report_txt = (
+            f"===== 전류의 자기장 최종 보고서 =====\n"
+            f"학번: {st.session_state.student_info.get('학번', '미입력')}\n"
+            f"성명: {st.session_state.student_info.get('성명', '미입력')}\n\n"
+            f"----------------------------------------\n\n"
+            f"## (1) 실험 방법 요약\n{st.session_state.final_report.get('text1', '')}\n\n"
+            f"## (2) 요소와 관계 설명\n{st.session_state.final_report.get('text2', '')}\n\n"
+            f"## (3) 아이디어 및 소감\n{st.session_state.final_report.get('text3', '')}\n\n"
+            f"----------------------------------------\n\n"
+            f"## 🤖 AI튜터 종합 피드백\n"
+            f"{st.session_state.final_report.get('feedback', '')}\n"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            # TXT 다운로드 버튼
+            st.download_button(
+                "📝 TXT 파일로 다운로드",
+                data=report_txt.encode("utf-8"),
+                file_name=f"report_{st.session_state.student_info.get('학번', 'student')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+
+        with col2:
+            # PDF 다운로드 (fpdf 설치돼 있을 때만)
+            if FPDF_ENABLED:
+                try:
+                    pdf = FPDF()
+                    pdf.set_auto_page_break(auto=True, margin=15)
+                    
+                    # 한글 폰트 추가 (NanumGothic 폰트 파일이 'fonts' 폴더에 있어야 함)
+                    font_path = BASE_DIR / "fonts" / "NanumGothic-Regular.ttf"
+                    if font_path.exists():
+                        pdf.add_font('NanumGothic', '', str(font_path), uni=True)
+                        pdf.set_font('NanumGothic', '', 12)
+                    else:
+                        # 폰트가 없으면 기본 폰트로 설정 (한글 깨짐)
+                        pdf.set_font("Helvetica", size=12)
+                        st.warning("PDF 한글 폰트 파일(NanumGothic-Regular.ttf)을 찾을 수 없어 한글이 깨질 수 있습니다.", icon="⚠️")
+
+                    pdf.add_page()
+                    # multi_cell을 사용하여 텍스트 자동 줄바꿈 처리
+                    pdf.multi_cell(0, 10, report_txt)
+                    
+                    # PDF 데이터를 메모리 버퍼에 저장
+                    pdf_buffer = BytesIO()
+                    pdf.output(pdf_buffer)
+
+                    st.download_button(
+                        "📄 PDF 파일로 다운로드",
+                        data=pdf_buffer.getvalue(),
+                        file_name=f"report_{st.session_state.student_info.get('학번', 'student')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"PDF 생성 중 오류 발생: {e}")
+        
+        # 모든 UI를 그린 후 함수 종료
         return
 
-    # --- 입력 폼 -------------------------------------------
+    # --- 아직 제출하지 않았을 때의 입력 폼 -------------------------------------------
     text1 = st.text_area(
         "(1) 직선 전류가 만드는 자기장의 세기에 영향을 미치는 "
         "요소를 확인할 수 있는 실험 방법을 요약하시오. "
-        "[※ 새로운 실험을 설계하거나, 검색한 실험 방법을 설명하면 됩니다.]", height=150)
+        "[※ 새로운 실험을 설계하거나, 검색한 실험 방법을 설명하면 됩니다.]",
+        height=150, key="report_text1")
     text2 = st.text_area(
         "(2) 직선 전류가 만드는 자기장의 세기에 영향을 미치는 "
-        "요소와 자기장 세기의 관계를 설명하시오.", height=150)
+        "요소와 자기장 세기의 관계를 설명하시오.",
+        height=150, key="report_text2")
     text3 = st.text_area(
         "(3) 실험 결과와 상관없이 새로운 아이디어, 자신의 역할, "
-        "잘했던 점 등을 자유롭게 작성하시오.", height=150)
+        "잘했던 점 등을 자유롭게 작성하시오.",
+        height=150, key="report_text3")
 
     if st.button("🔬 최종 보고서 제출", type="primary"):
         if text1 and text2 and text3:
             with st.spinner("AI튜터 종합 피드백 생성 & 데이터 저장 중..."):
-                full_report = f"① {text1}\n\n② {text2}\n\n③ {text3}"
+                # (이하 로직은 기존과 동일)
+                full_report = f"항목(1):\n{text1}\n\n항목(2):\n{text2}\n\n항목(3):\n{text3}"
                 feedback = call_gpt(
-                    "You are a helpful physics TA. Summarize key points and "
-                    "provide constructive feedback in Korean.",
-                    f"학생 보고서:\n{full_report}", 350)
+                    "You are a helpful physics TA...",
+                    f"다음은 학생이 작성한 실험 보고서입니다...\n\n{full_report}",
+                    400)
+                
                 st.session_state.final_report = {
                     "text1": text1, "text2": text2, "text3": text3,
                     "feedback": feedback
@@ -517,13 +625,19 @@ def page_report():
                 st.session_state.report_submitted = True
 
                 info = st.session_state.student_info
-                append_row_to_gsheet([
-                    info["학번"], info["성명"], info["이동반"],
-                    get_check_tag(), text1, text2, text3, feedback
-                ])
+                now_str = datetime.datetime.now().strftime("%y-%m-%d %H:%M")
+                
+                row_data = [
+                    info.get("학번", ""), info.get("성명", ""), info.get("이동반", ""),
+                    f"보고서 제출 ({now_str})",
+                    text1, text2, text3, feedback
+                ]
+                append_row_to_gsheet(row_data)
+                
                 st.rerun()
         else:
             st.warning("세 항목 모두 작성해야 제출 가능합니다.")
+
 
 def page_basic_2():
     st.markdown("""
@@ -729,11 +843,7 @@ def page_example():
         else:
             st.error("❌ 오답입니다.")
 
-        info = st.session_state.student_info
-        append_row_to_gsheet([
-            info["학번"], info["성명"], info["이동반"],
-            get_check_tag(), f"예제풀이: {sel}", str(ok), "", ""
-        ])
+        
         st.markdown("""
 **해설**:  
 - 민수: "자기장의 세기는 전류의 세기에 비례한다." ✔️ 옳다  
@@ -777,20 +887,8 @@ xy 평면에 놓여 있다. 표는 점 P, Q 에서 세 도선 전류가 만드�
         else:
             st.error("❌ 오답입니다.")
         
-        # 학생 정보 가져오기
-        info = st.session_state.student_info
         
-        # Google Sheet에 기록 (올바른 형식으로)
-        timestamp = datetime.datetime.now().isoformat()
-        append_row_to_gsheet([
-            timestamp,
-            info["학번"], 
-            info["성명"], 
-            info["이동반"],
-            "수능응용",
-            f"선택: {sel}",
-            str(ok)
-        ])
+       
         
         # 해설 이미지 표시
         safe_img("suneung_quiz_solution.png", caption="해설", use_column_width=True)
@@ -805,8 +903,10 @@ xy 평면에 놓여 있다. 표는 점 P, Q 에서 세 도선 전류가 만드�
         → 따라서 정답은 ② ㄷ
         """)
 
+# page_essay 함수를 아래 코드로 교체해주세요.
+
 def page_essay():
-    st.header("탐구 과제: 우리 생활 속 전자기장")
+    st.header("심화 학습 : 우리 생활 속 전자기장")
     st.markdown("""
 스피커, 전자석 기중기, 전동기는 모두 전류·자기장 상호작용 원리를
 사용한다. 원리를 탐구하고 AI챗봇과 토론해 보세요.
@@ -822,8 +922,12 @@ def page_essay():
     st.subheader("💬 AI챗봇과 토론하기")
     if "essay_history" not in st.session_state:
         st.session_state.essay_history = []
+    
+    # 채팅 기록 표시
     for role, msg in st.session_state.essay_history:
         st.chat_message(role).write(msg)
+    
+    # 사용자 입력
     if prompt := st.chat_input("세 기기의 원리에 대한 생각을 작성해보세요."):
         st.session_state.essay_history.append(("user", prompt))
         st.chat_message("user").write(prompt)
@@ -834,6 +938,52 @@ def page_essay():
                     prompt, 400)
                 st.write(ans)
                 st.session_state.essay_history.append(("assistant", ans))
+                st.rerun() # 채팅 후 바로 새로고침하여 입력창을 비움
+
+    st.markdown("---")
+    st.subheader("📝 탐구 내용 저장")
+    st.info("AI챗봇과의 토론을 마쳤다면, 아래 버튼을 눌러 대화 내용을 구글 시트에 저장하세요.")
+
+    # ▼▼▼ [수정] 탐구 내용 저장 버튼 및 로직 추가 ▼▼▼
+    if st.button("💬 탐구 과제 내용 저장하기", type="primary"):
+        if not st.session_state.essay_history:
+            st.warning("저장할 대화 내용이 없습니다. 먼저 AI챗봇과 토론을 진행해주세요.")
+        else:
+            with st.spinner("탐구 내용을 저장하는 중입니다..."):
+                # 1. 채팅 기록을 하나의 문자열로 변환
+                chat_log_list = []
+                for role, msg in st.session_state.essay_history:
+                    prefix = "학생" if role == "user" else "AI튜터"
+                    chat_log_list.append(f"[{prefix}]\n{msg}")
+                
+                full_chat_history = "\n\n---\n\n".join(chat_log_list)
+
+                # 2. 구글 시트에 보낼 데이터 구성 (9개 컬럼)
+                info = st.session_state.student_info
+                now_str = datetime.datetime.now().strftime("%y-%m-%d %H:%M")
+                
+                row_data = [
+                    info.get("학번", ""),
+                    info.get("성명", ""),
+                    info.get("이동반", ""),
+                    f"탐구 과제 ({now_str})",  # 활동명
+                    "",                       # (1)
+                    "",                       # (2)
+                    "",                       # (3)
+                    "",                       # 피드백
+                    full_chat_history         # 탐구
+                ]
+
+                # 3. 구글 시트에 데이터 추가
+                success = append_row_to_gsheet(row_data)
+
+                if success:
+                    st.success("탐구 내용이 성공적으로 저장되었습니다!")
+                    # 저장 후에는 대화 기록 초기화 (선택 사항)
+                    # st.session_state.essay_history = [] 
+                else:
+                    st.error("탐구 내용 저장에 실패했습니다. 다시 시도해주세요.")
+    # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 def page_feedback():
     st.subheader("피드백 / 정리하기 – AI튜터와 학습 마무리")
@@ -883,19 +1033,19 @@ PAGES = {
     "기본 개념 문제 (1차시)": page_basic_1,
     "전류의 자기장 실험1 : 직선 도선 주위에서 자기장 확인하기":
         lambda: page_exp(
-            "실험1 : 직선 도선 주위에서 자기장 확인하기",
+            "실험1 : 스위치가 닫히면 나침반의 자침이 움직이는 것을 관찰한다. 나침반의 위치를 직선 도선에서 다르게 하면서 나침반의 자침이 돌아가는 각도를 관찰한다.",
             exp_num=1,
             image_file="exp_straight_wire.png"
         ),
     "전류의 자기장 실험2 : 원형 도선의 중심에서 자기장 확인하기":
         lambda: page_exp(
-            "실험2 : 원형 도선의 중심에서 자기장 확인하기",
+            "실험2 : 스위치가 닫히면 원형 도선의 중심에 있는 나침반의 N이 어떻게 되는지를 관찰한다.",
             exp_num=2,
             image_file="exp_circular_wire.png"
         ),
     "전류의 자기장 실험3 : 솔레노이드에서 자기장 확인하기":
         lambda: page_exp(
-            "실험3 : 솔레노이드에서 자기장 확인하기",
+            "실험3 : 스위치가 닫히면 솔레노이드 근처 또는 솔레노이드 내부에 있는 나침반의 자침이 어떻게 움직이는지를 관찰한다.",
             exp_num=3,
             image_file="exp_solenoid.png"
         ),
