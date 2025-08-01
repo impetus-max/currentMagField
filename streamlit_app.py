@@ -656,11 +656,7 @@ def page_basic_2():
         else:
             st.error("❌ 오답입니다.")
 
-        info = st.session_state.student_info
-        append_row_to_gsheet([
-            info["학번"], info["성명"], info["이동반"],
-            get_check_tag(), f"기본문제2차시: {sel}", str(ok), "", ""
-        ])
+        
         if not ok:
             st.markdown("""
 **풀이**  
