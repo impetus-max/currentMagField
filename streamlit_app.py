@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-전류의 자기장 학습용 스트림릿 앱 (상세 콘텐츠 + GPT 기능 통합 최종본)
+전류의 자기장 학습용 스트림릿 앱 (상세 콘텐츠 + AI튜터 기능 통합 최종본)
 """
 
 ########################  공통 import  ########################
@@ -122,12 +122,20 @@ def append_row_to_gsheet(row_data):
                   "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
-        spreadsheet = client.open("MagFieldResponses")
-        sheet = spreadsheet.sheet1
+        
+        spreadsheet = client.open("streamlit 앱 시트 관리")
+        sheet = spreadsheet.worksheet("시트1")
+
         while len(row_data) < 8:   # 8 컬럼 맞추기
             row_data.append("")
         sheet.append_row(row_data, value_input_option="USER_ENTERED")
         return True
+    except gspread.exceptions.SpreadsheetNotFound:
+        st.sidebar.error("GSheet 오류: 'streamlit 앱 시트 관리' 파일을 찾을 수 없습니다. 파일 이름을 확인하거나 공유 설정을 확인하세요.")
+        return False
+    except gspread.exceptions.WorksheetNotFound:
+        st.sidebar.error("GSheet 오류: '시트1' 워크시트를 찾을 수 없습니다. 시트 이름을 확인하세요.")
+        return False
     except Exception as e:
         st.sidebar.error(f"GSheet 오류: {e}")
         return False
@@ -311,14 +319,14 @@ def page_intro_physics():
 
 def page_goal():
     st.markdown("""
-    ### 학습 목표
+    ### (**오늘 공부할 내용을 확인하세요!!**)
     1. 전류에 의한 자기 작용을 시뮬레이션과 실험으로 확인한다.
     2. 직선도선, 원형도선, 솔레노이드에 의한 자기장 모양을 이해한다.
     """)
 
 def page_goal_2():
     st.markdown("""
-    ### 학습 목표
+    ### (**실험 결과를 바탕으로 다음 공부할 내용을 확인하세요!!**)
     1. 전류의 방향과 세기가 자기장에 미치는 영향을 정량적으로 해석할 수 있다.  
     2. 전류의 자기 현상이 적용된 생활 속 사례를 설명할 수 있다.
     """)
@@ -413,21 +421,30 @@ def page_simulation():
 def page_basic_1():
     """기본 개념 문제 – 1차시"""
     safe_img("magnet_quiz_1.png", width=500)
-    ans = st.text_input("A 지점에 놓은 나침반의 N극이 가리키는 방향은 어디인가? (동/서/남/북)")
-    if st.button("채점"):
+    ans = st.text_input("위 그림에서 A 지점에 놓은 나침반의 N극이 가리키는 방향은 어디인가? (동/서/남/북)")
+    if st.button("확인"):
         if ans and "동" in ans:
-            st.success("🎉 정답입니다!")
+            st.success("🎉 정답입니다! 잘했어요!!")
         else:
             st.error("❌ 오답입니다. 자기력선은 N극에서 S극을 향합니다. A지점에서는 동쪽을 향합니다.")
 
-def page_exp(title: str, exp_num: int):
-    """실험1·2·3 관찰 & AI튜터 피드백"""
+# ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+# [수정된 부분 1] page_exp 함수에 image_file 인자 추가
+# ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+def page_exp(title: str, exp_num: int, image_file: str):
+    """실험1·2·3 관찰 & AI튜터 피드백 (이미지 포함)"""
     st.markdown(f"#### {title}")
+    
+    # 해당 실험 이미지 표시
+    if image_file:
+        safe_img(image_file, caption=f"실험 {exp_num} 구성도", use_column_width=True)
+    st.markdown("---")
+
     key_txt = f"exp{exp_num}_text"
     key_fb  = f"exp{exp_num}_feedback"
 
     st.session_state[key_txt] = st.text_area(
-        "관찰 내용을 작성하세요 (나침반의 N극 움직임 등)",
+        "위 실험 그림을 보고, 전류가 흐를 때 나침반의 N극이 어떻게 움직일지 관찰 내용을 작성하세요.",
         st.session_state[key_txt], height=150, key=f"ta_{exp_num}")
 
     if st.button("🤖 AI튜터 피드백 요청", key=f"fb_btn_{exp_num}"):
@@ -453,7 +470,7 @@ def page_report():
     st.info("세 항목을 모두 작성 후 **최종 보고서 제출**을 눌러주세요.")
 
     # --- 이전 실험 1·2·3 리뷰 영역 -----------------------------
-    with st.expander("실험 1·2·3 관찰 내용 & AI튜터 피드백 검토하기", expanded=False):
+    with st.expander("#실험 1·2·3 관찰 내용 & AI튜터 피드백 검토하기", expanded=False):
         for i in range(1, 3+1):
             st.markdown(f"**실험 {i} 관찰**")
             st.markdown(st.session_state.get(f"exp{i}_text", "") or "_(미입력)_")
@@ -517,10 +534,9 @@ def page_basic_2():
     opts = ["① 스위치 열어두면 나침반의 N극은 북쪽을 향한다.", "② 스위치 닫으면 나침반의 N극은 동쪽으로 회전한다.",
             "③ 전류의 세기가 증가하면 나침반의 N극은 남쪽을 향한다.", "④ 전류의 세기가 증가하면 회전각이 증가한다.", "⑤ 전류의 방향을 반대로 하면 나침반의 N극은 서쪽을 향해 회전한다."]
     sel = st.radio("선택", opts, index=None, key="basic2_sel")
-    if st.button("채점 (2차시)"):
+    if st.button("확인"):
         ok = sel is not None and sel.startswith("③")
         
-         # ✅ 오류 없는 메시지 출력
         if ok:
             st.success("🎉 정답입니다!")
         else:
@@ -552,7 +568,7 @@ def page_theory():
 **세기**: 전류의 세기가 증가하면 ⇒ 자기장의 세기가 증가한다.  
       전류로부터의 거리가 멀어질수록 자기장의 세기가 감소한다.
 """)
-        safe_img("right_hand_rule_straight.png", width=250)
+        safe_img("right_hand_rule_straight.png", width=500)
     with col2:
         current_I = st.slider("전류 I", -5.0, 5.0, 2.0, 0.1, key="i_str_3d")
         fig = plt.figure(figsize=(6, 6))
@@ -577,29 +593,77 @@ def page_theory():
     # ───────────────────── 2. 원형 도선 ─────────────────────
     st.markdown("### 2. 원형 도선에 의한 자기장")
     st.latex(r"B_{\text{중심}} = k' \frac{N I}{R}")
+
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("""
-**방향**: 전류 방향으로 네 손가락을 감아쥐면
-엄지가 가리키는 방향이 중심 자기장.  
-**세기**: N(감은 수)와 I(전류)의 세기가 증가하면 ⇒ 자기장(B)의 세기는 증가한다.  
-      R(반지름)이 증가하면 ⇒ B는 감소한다.
-""")
+    **방향**: 전류 방향으로 네 손가락을 감아쥐면
+    엄지가 가리키는 방향이 중심 자기장.  
+    **세기**: N(감은 수)와 I(전류)의 세기가 증가하면 ⇒ 자기장(B)의 세기는 증가한다.  
+        R(반지름)이 증가하면 ⇒ B는 감소한다.
+    """)
+
     with col2:
         I_circ = st.slider("전류 I", -5.0, 5.0, 2.0, 0.1, key="i_circ_3d")
         R_circ = st.slider("반지름 R", 0.5, 3.0, 1.5, key="r_circ_3d")
+        
         fig = plt.figure(figsize=(6, 6))
         ax = fig.add_subplot(111, projection='3d')
         ax.view_init(elev=25, azim=30)
+        
+        # 원형 도선 그리기
         theta = np.linspace(0, 2*np.pi, 100)
         x, y = R_circ*np.cos(theta), R_circ*np.sin(theta)
-        ax.plot(x, y, 0, color='gray', lw=3)
+        z = np.zeros_like(x)
+        ax.plot(x, y, z, color='red', lw=4)
+        
         if abs(I_circ) > 0.1:
+            # 전류 방향 표시 (원 위의 여러 지점에 화살표)
+            for angle in [0, np.pi/2, np.pi, 3*np.pi/2]:
+                x_pos = R_circ * np.cos(angle)
+                y_pos = R_circ * np.sin(angle)
+                
+                # 접선 방향 (전류 방향)
+                if I_circ > 0:  # 반시계방향
+                    dx = -np.sin(angle) * 0.4
+                    dy = np.cos(angle) * 0.4
+                else:  # 시계방향
+                    dx = np.sin(angle) * 0.4
+                    dy = -np.cos(angle) * 0.4
+                
+                ax.quiver(x_pos, y_pos, 0, dx, dy, 0,
+                        length=0.8, color='orange', arrow_length_ratio=0.3)
+            
+            # 중심에서의 자기장 (강조 표시)
             d = 1 if I_circ > 0 else -1
-            ax.quiver(R_circ, 0, 0, 0, d, 0,
-                      length=1.0, color='red', arrow_length_ratio=0.4)
-            ax.quiver(0, 0, 0, 0, 0, d,
-                      length=abs(I_circ), color='b', arrow_length_ratio=0.2)
+            B_magnitude = abs(I_circ) / R_circ  # 상대적 크기
+            
+            ax.quiver(0, 0, 0, 0, 0, d * B_magnitude,
+                    length=1.5, color='blue', arrow_length_ratio=0.2, linewidth=3)
+            
+            # 자기장 방향 텍스트
+            direction_text = "↑위" if d > 0 else "↓아래"
+            ax.text(0, 0, d * B_magnitude + 0.3, f"B {direction_text}", 
+                    fontsize=12, color='blue', weight='bold', ha='center')
+        
+        # 중심점 표시
+        ax.scatter([0], [0], [0], color='black', s=80)
+        ax.text(0, 0, -0.2, "중심", fontsize=10, ha='center')
+        
+        # 축 설정
+        max_range = R_circ + 0.5
+        ax.set_xlim(-max_range, max_range)
+        ax.set_ylim(-max_range, max_range)
+        ax.set_zlim(-1, 2)
+        
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z (자기장)')
+        
+        # 제목
+        current_dir = "반시계방향" if I_circ > 0 else "시계방향" if I_circ < 0 else "전류 없음"
+        ax.set_title(f'전류 {I_circ:.1f}A ({current_dir})')
+        
         st.pyplot(fig)
 
     # ▶ 원형 도선 정적 그림 2장
@@ -607,10 +671,10 @@ def page_theory():
     c1img, c2img = st.columns(2)
     with c1img:
         safe_img("circular_wire_center.png",
-                 caption="원형 도선 중심의 자기장")
+                caption="원형 도선 중심의 자기장")
     with c2img:
         safe_img("circular_wire_pattern.png",
-                 caption="원형 도선의 자기력선 패턴")
+                caption="원형 도선의 자기력선 패턴")
 
     # ───────────────────── 3. 솔레노이드 ─────────────────────
     st.markdown("### 3. 솔레노이드에 의한 자기장")
@@ -649,8 +713,6 @@ def page_theory():
         safe_img("solenoid_iron_filings.png",
                  caption="솔레노이드 주변 철가루 패턴")
 
-
-
 def page_example():
     st.markdown("""
 칠판에 그려진 무한히 긴 직선 도선 주위 P·Q점 자기장에 대해
@@ -659,37 +721,89 @@ def page_example():
     opts = ["① 민수", "② 철수", "③ 민수·철수",
             "④ 민수·영희", "⑤ 민수·철수·영희"]
     sel = st.radio("선택", opts, index=None, key="ex_sel")
-    if st.button("채점 (예제)"):
+    if st.button("확인"):
         ok = sel is not None and sel.startswith("⑤")
-        st.success("🎉 정답입니다!") if ok else st.error("❌ 오답입니다.")
+        
+        if ok:
+            st.success("🎉 정답입니다! (⑤)")
+        else:
+            st.error("❌ 오답입니다.")
+
         info = st.session_state.student_info
         append_row_to_gsheet([
             info["학번"], info["성명"], info["이동반"],
             get_check_tag(), f"예제풀이: {sel}", str(ok), "", ""
         ])
-        st.markdown("**해설**: 세 명 모두 옳다 → ⑤")
+        st.markdown("""
+**해설**:  
+- 민수: "자기장의 세기는 전류의 세기에 비례한다." ✔️ 옳다  
+- 철수: "앙페르 법칙(오른나사 법칙)에 따라 전류 방향이 바뀌면 자기장 방향도 바뀐다." ✔️ 옳다 – 방향 역전  
+- 영희: "자기장의 세기는 도선으로부터의 수직 거리에 반비례한다." ✔️ 옳다 – (따라서 P < Q)  
+
+→ 세 명 모두 옳으므로 ⑤ 민수, 철수, 영희가 정답.
+""")
 
 def page_suneung():
-    st.markdown(r"""
+    st.markdown("""
 **[수능 응용 문제]**  
-무한히 긴 직선 도선 **A, B, C** ($I_{0},\,I_{B},\,I_{0}$)가
-$xy$ 평면에 놓여 있다. 표는 점 P, Q 에서 세 도선 전류가 만드는
-자기장 세기를 요약한 것이다. \<보기\>에서 옳은 내용을 모두 고르시오.
+무한히 긴 직선 도선 **A, B, C** (I₀, I_B, I₀)가
+xy 평면에 놓여 있다. 표는 점 P, Q 에서 세 도선 전류가 만드는
+자기장 세기를 요약한 것이다. <보기>에서 옳은 내용을 모두 고르시오.
 """)
+    
     safe_img("suneung_quiz_fig.png", caption="세 도선 A·B·C와 점 P·Q")
-    st.markdown(r"<보기>  ㄱ. $I_{B}=I_{0}$  ㄴ. C 전류 방향은 $-y$  ㄷ. Q점 총 $\vec{B}$ 방향은 $+z$")
+    
+    st.markdown("""
+**<보기>**  
+ㄱ. I_B = I₀  
+ㄴ. C 전류 방향은 -y  
+ㄷ. Q점 총 B⃗ 방향은 +z
+""")
+    
     opts = ["① ㄱ", "② ㄷ", "③ ㄱ, ㄴ",
             "④ ㄴ, ㄷ", "⑤ ㄱ, ㄴ, ㄷ"]
+    
     sel = st.radio("선택", opts, index=None, key="sat_sel")
-    if st.button("채점 (수능응용)"):
-        ok = sel is not None and sel.startswith("②")
-        st.success("🎉 정답입니다! (② ㄷ)") if ok else st.error("❌ 오답입니다.")
+    
+    if st.button("확인"):
+        if sel is None:
+            st.warning("선택지를 선택해주세요.")
+            return
+            
+        ok = sel.startswith("②")
+        
+        if ok:
+            st.success("🎉 정답입니다! (② ㄷ)")
+        else:
+            st.error("❌ 오답입니다.")
+        
+        # 학생 정보 가져오기
         info = st.session_state.student_info
+        
+        # Google Sheet에 기록 (올바른 형식으로)
+        timestamp = datetime.datetime.now().isoformat()
         append_row_to_gsheet([
-            info["학번"], info["성명"], info["이동반"],
-            get_check_tag(), f"수능응용: {sel}", str(ok), "", ""
+            timestamp,
+            info["학번"], 
+            info["성명"], 
+            info["이동반"],
+            "수능응용",
+            f"선택: {sel}",
+            str(ok)
         ])
+        
+        # 해설 이미지 표시
         safe_img("suneung_quiz_solution.png", caption="해설", use_column_width=True)
+        
+        # 상세 해설
+        st.markdown("""
+        **해설**:  
+        - ㄱ. I_B = I₀ ❌ 문제 조건을 통해 계산하면 다른 값
+        - ㄴ. C 전류 방향은 -y ❌ 실제로는 +y 방향  
+        - ㄷ. Q점 총 B⃗ 방향은 +z ✔️ 벡터 합성 결과 +z 방향
+        
+        → 따라서 정답은 ② ㄷ
+        """)
 
 def page_essay():
     st.header("탐구 과제: 우리 생활 속 전자기장")
@@ -714,7 +828,7 @@ def page_essay():
         st.session_state.essay_history.append(("user", prompt))
         st.chat_message("user").write(prompt)
         with st.chat_message("assistant"):
-            with st.spinner("GPT가 답변 중..."):
+            with st.spinner("AI튜터가 답변 중..."):
                 ans = call_gpt(
                     "You are a Socratic physics mentor. Respond in Korean.",
                     prompt, 400)
@@ -722,7 +836,7 @@ def page_essay():
                 st.session_state.essay_history.append(("assistant", ans))
 
 def page_feedback():
-    st.subheader("피드백 / 정리하기 – GPT와 학습 마무리")
+    st.subheader("피드백 / 정리하기 – AI튜터와 학습 마무리")
     st.markdown("오늘 가장 중요하다고 생각한 점이나 어려웠던 점을 적어보세요.")
     if "feedback_history" not in st.session_state:
         st.session_state.feedback_history = [("assistant", "안녕하세요! 오늘 수업 어떠셨나요?")]
@@ -732,7 +846,7 @@ def page_feedback():
         st.session_state.feedback_history.append(("user", prompt))
         st.chat_message("user").write(prompt)
         with st.chat_message("assistant"):
-            with st.spinner("GPT가 답변 작성 중..."):
+            with st.spinner("AI튜터가 답변 작성 중..."):
                 ans = call_gpt(
                     "You are a friendly physics tutor. Summarize key points "
                     "and encourage the student. Respond in Korean.",
@@ -759,19 +873,34 @@ def page_feedback():
 # ============================================================
 #  페이지 라우팅
 # ============================================================
+# ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+# [수정된 부분 2] PAGES 딕셔너리에서 page_exp 호출 시 이미지 파일명 전달
+# ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 PAGES = {
     "메인 화면": page_intro_physics,
     "학습 목표": page_goal,
     "자기장 시뮬레이션": page_simulation,
     "기본 개념 문제 (1차시)": page_basic_1,
     "전류의 자기장 실험1 : 직선 도선 주위에서 자기장 확인하기":
-        lambda: page_exp("실험1 : 직선 도선 주위에서 자기장 확인하기", 1),
+        lambda: page_exp(
+            "실험1 : 직선 도선 주위에서 자기장 확인하기",
+            exp_num=1,
+            image_file="exp_straight_wire.png"
+        ),
     "전류의 자기장 실험2 : 원형 도선의 중심에서 자기장 확인하기":
-        lambda: page_exp("실험2 : 원형 도선의 중심에서 자기장 확인하기", 2),
+        lambda: page_exp(
+            "실험2 : 원형 도선의 중심에서 자기장 확인하기",
+            exp_num=2,
+            image_file="exp_circular_wire.png"
+        ),
     "전류의 자기장 실험3 : 솔레노이드에서 자기장 확인하기":
-        lambda: page_exp("실험3 : 솔레노이드에서 자기장 확인하기", 3),
+        lambda: page_exp(
+            "실험3 : 솔레노이드에서 자기장 확인하기",
+            exp_num=3,
+            image_file="exp_solenoid.png"
+        ),
     "실험 결과 작성하기": page_report,
-    "학습 목표": page_goal_2,
+    # 2차시 페이지 정의는 이전과 동일
     "기본 개념 문제 (2차시)": page_basic_2,
     "전류에 의한 자기작용 이론 정리": page_theory,
     "예제 풀이": page_example,
@@ -779,5 +908,14 @@ PAGES = {
     "탐구 과제": page_essay,
     "피드백 / 정리하기": page_feedback,
 }
-# 호출
-PAGES.get(step_name, page_intro_physics)()
+
+# '학습 목표'는 1차시와 2차시에 중복되므로, 현재 위치에 따라 다른 함수를 호출하도록 처리
+current_idx = st.session_state.current
+if steps_all[current_idx] == "학습 목표":
+    if current_idx < len(steps_1_all):
+        page_goal()
+    else:
+        page_goal_2()
+else:
+    # 나머지 페이지 호출
+    PAGES.get(step_name, page_intro_physics)()
